@@ -37,7 +37,7 @@ What the fabric gives Linux:
 | user LEDs 0 to 2 (they light on a low level) | diagnostics: 0 pixel clock PLL locked, 1 PLL lost lock since load, 2 the video block ran out of data in the last half second. Healthy: LED 0 off, 1 and 2 on. |
 
 The header signals are 3.3 V logic. JP1 pin 11 is 5 V and pin 12 is ground; pin 29 is 3.3 V and
-pin 30 is ground. The top-level [README.md](../README.md) has the full pin table, where JP1 and
+pin 30 is ground. [system.md](../system.md) has the full pin table, where JP1 and
 its pin 1 are, and what is and is not like a Raspberry Pi's header.
 
 ## What it needs first

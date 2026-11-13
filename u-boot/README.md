@@ -65,7 +65,7 @@ Check the result:
 ## How U-Boot boots the card
 
 Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts it there.
-The top-level [README.md](../README.md) has the whole sequence and the memory addresses. In
+[system.md](../system.md) has the whole sequence and the memory addresses. In
 short:
 
 1. U-Boot's stock boot command scans the partitions marked bootable.

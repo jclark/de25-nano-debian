@@ -1,10 +1,11 @@
 # Instructions for agents
 
 This repository takes a Terasic DE25-Nano from source to a running Debian system. You may be
-here to build it for someone, or to change the repository. Read `README.md` first: it has the
-overview, the order of work, and a table of what has and has not been tested. Each
-task's own `README.md` has what it produces, what it needs first, its tools, its source and
-its commands.
+here to build it for someone, or to change the repository. Read `README.md` first: it says
+what this is and has a table of what has and has not been tested. `building.md` says what the
+two stages are and has what the build needs, the tasks and the order of work. `system.md`
+describes the system that results. Each task's own `README.md` has what it produces, what it needs first,
+its tools, its source and its commands.
 
 ## Building it for someone
 
