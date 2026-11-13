@@ -90,6 +90,9 @@ sdimage/build.sh stage2  # piece 4 for stage 2
 Each script fetches the sources it needs into `work/` and leaves its results in `out/`. Both
 directories are created in this repository and are not in git.
 
+If an agent is doing this for you, [AGENTS.md](AGENTS.md) tells it the order, what can run in
+parallel, and where it must stop and ask you (writing the card, anything to do with the flash).
+
 ## What you need
 
 - An x86-64 Linux machine with Docker and git, about 60 GB of free disk for stage 2 (the
