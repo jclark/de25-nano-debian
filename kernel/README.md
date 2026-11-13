@@ -59,10 +59,13 @@ short stack of patches that are on their way upstream:
   fixes around them, and the split header feature switched off on Agilex 5, where it
   gave corrupted received data on this board;
 - the route for the PTP trigger from the FPGA (`altr,f2h-ptp-aux-trig`);
+- a fix that lets programs request external timestamps with strict flag checking
+  (`PTP_EXTTS_REQUEST2`), which SatPulse needs;
 - one commit that builds the board's device tree with symbols.
 
-The branch is rebuilt when those patches change, each time under a new branch name; this file
-will name the new one.
+The branch only moves forward: changes to those patches, and newer 7.4 release candidates, are
+added on top of it, and it is never rewritten. When the base moves to 7.5, a new branch
+`de25-nano-mainline/v7.5` will be started, and this file will name it.
 
 Configuration: arm64 `defconfig`, then `scripts/kconfig/merge_config.sh` with
 `de25-nano.fragment`, which sets three options. The reasons are in the file: the chip's
