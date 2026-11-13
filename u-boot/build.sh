@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build piece 1: TF-A and U-Boot for the DE25-Nano. See u-boot/README.md.
+# Build Task B: TF-A and U-Boot for the DE25-Nano. See u-boot/README.md.
 #
 # Usage: u-boot/build.sh
 # Output: out/u-boot/u-boot.itb            U-Boot with TF-A's bl31.bin inside, for the SD card

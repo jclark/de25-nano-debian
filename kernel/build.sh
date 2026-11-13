@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build piece 2: the kernel for the DE25-Nano, cross-compiled for arm64. See kernel/README.md.
+# Build Task K: the kernel for the DE25-Nano, cross-compiled for arm64. See kernel/README.md.
 #
 # Usage: kernel/build.sh
 # Output: out/kernel/Image                                   the kernel

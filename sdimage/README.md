@@ -1,12 +1,12 @@
-# Piece 4: SD card image
+# Task I: SD card image
 
 ```mermaid
 flowchart LR
   deb(["Debian archive"]) --> m["Build the image"]
   s(["build-image, boot.cmd, files/"]) --> m
-  itb[/"u-boot.itb<br/>from piece 1"/] --> m
-  k[/"Image, modules.tar.gz, board .dtb<br/>from piece 2"/] --> m
-  f[/"fpga.rbf, fpga.dtbo<br/>from piece 3"/] -.-> m
+  itb[/"u-boot.itb<br/>from Task B"/] --> m
+  k[/"Image, modules.tar.gz, board .dtb<br/>from Task K"/] --> m
+  f[/"fpga.rbf, fpga.dtbo<br/>from Task F"/] -.-> m
   m --> img[/"de25-nano-stageN.img"/]
 ```
 
@@ -23,7 +23,7 @@ image, 3 GB, to be written to a microSD card ([install-card.md](../install-card.
 Both partitions are marked bootable, because U-Boot scans only those: partition 1 for the
 script, then partition 2 for the menu. Partition 2 grows to fill the card at first boot.
 
-This piece owns the layout of the card, so the U-Boot script and the boot menu are here.
+This task owns the layout of the card, so the U-Boot script and the boot menu are here.
 
 - `boot.cmd` (wrapped into `boot.scr` during the build) tells U-Boot the name of the device
   tree file and where to load overlays, and loads `fpga.rbf` if it is on the card.
@@ -41,9 +41,9 @@ uses DHCP.
 
 ## What it needs first
 
-- Piece 1: `out/u-boot/u-boot.itb`.
-- Piece 2: `out/kernel/Image`, `modules.tar.gz`, `dtbs/socfpga_agilex5_de25_nano.dtb`.
-- For stage 2, piece 3: `out/fpga/fpga.rbf` and `out/fpga/fpga.dtbo`.
+- Task B: `out/u-boot/u-boot.itb`.
+- Task K: `out/kernel/Image`, `modules.tar.gz`, `dtbs/socfpga_agilex5_de25_nano.dtb`.
+- For stage 2, Task F: `out/fpga/fpga.rbf` and `out/fpga/fpga.dtbo`.
 
 ## Tools to download
 
@@ -57,7 +57,7 @@ The build runs in a privileged container, which `mmdebstrap` needs to mount `/pr
 ## Source
 
 Debian packages from the archive, fetched by `mmdebstrap`. Ours: `build.sh` (collects the
-other pieces' outputs), `build-image` and `mkimage-inner.sh` (make the image), `boot.cmd`,
+other tasks' outputs), `build-image` and `mkimage-inner.sh` (make the image), `boot.cmd`,
 `files/`.
 
 ## Commands

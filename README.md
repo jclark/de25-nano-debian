@@ -28,18 +28,18 @@ design is just a new file on the card.
 Stage 2 needs Altera's Quartus Pro, which is free for this FPGA and comes as a Docker image
 (17.5 GiB), both to build the design and to write the flash.
 
-## The pieces
+## The tasks
 
-Four pieces are built from source. A rectangle is a build, a slanted box is a file, a
+There are four tasks, each a build from source. Each has a letter. A rectangle is a build, a slanted box is a file, a
 trapezoid is something you do by hand, a cylinder is storage on the board. Solid arrows are
 needed for stage 1; dashed arrows only for stage 2.
 
 ```mermaid
 flowchart LR
-  P1["1 U-Boot, with TF-A"]
-  P2["2 Kernel"]
-  P3["3 FPGA design"]
-  P4["4 SD card image"]
+  P1["B: U-Boot, with TF-A"]
+  P2["K: Kernel"]
+  P3["F: FPGA design"]
+  P4["I: SD card image"]
   itb[/"u-boot.itb"/]
   spl[/"first-stage loader<br/>u-boot-spl-dtb.hex"/]
   kern[/"Image, modules"/]
@@ -62,12 +62,12 @@ flowchart LR
   P4 --> img --> wc --> sd
 ```
 
-| # | Piece | Produces | Needs first | Tool | Instructions |
+| Task | Builds | Produces | Needs first | Tool | Instructions |
 |---|---|---|---|---|---|
-| 1 | U-Boot, with TF-A | `u-boot.itb` for the card; the first-stage loader for the flash image | nothing | Docker | [u-boot/README.md](u-boot/README.md) |
-| 2 | Kernel | `Image`, modules, the board's device tree | nothing | Docker | [kernel/README.md](kernel/README.md) |
-| 3 | FPGA design | `fpga.rbf` and `fpga.dtbo` for the card; the flash image | the loader from piece 1, for its last step | Docker with the Quartus image | [fpga/README.md](fpga/README.md) |
-| 4 | SD card image | the card image | pieces 1 and 2; for stage 2 also piece 3 | Docker, qemu-user | [sdimage/README.md](sdimage/README.md) |
+| B | U-Boot, with TF-A | `u-boot.itb` for the card; the first-stage loader for the flash image | nothing | Docker | [u-boot/README.md](u-boot/README.md) |
+| K | Kernel | `Image`, modules, the board's device tree | nothing | Docker | [kernel/README.md](kernel/README.md) |
+| F | FPGA design | `fpga.rbf` and `fpga.dtbo` for the card; the flash image | the loader from Task B, for its last step | Docker with the Quartus image | [fpga/README.md](fpga/README.md) |
+| I | SD card image | the card image | Tasks B and K; for stage 2 also Task F | Docker, qemu-user | [sdimage/README.md](sdimage/README.md) |
 
 Then two things done by hand:
 
@@ -76,20 +76,20 @@ Then two things done by hand:
 
 ## Order of work
 
-Pieces 1, 2 and 3 do not depend on each other until the last step of piece 3, so start all
-three at once. Piece 4 comes last.
+Tasks B, K and F do not depend on each other until the last step of Task F, so start all
+three at once. Task I comes last.
 
 ```
-u-boot/build.sh          # piece 1, a few minutes
-kernel/build.sh          # piece 2, the longest build
-sdimage/build.sh stage1  # piece 4 for stage 1
+u-boot/build.sh          # Task B, a few minutes
+kernel/build.sh          # Task K, the longest build
+sdimage/build.sh stage1  # Task I for stage 1
 ```
 
 and for stage 2 as well:
 
 ```
-fpga/build.sh            # piece 3: pulls 17.5 GiB once, then about ten minutes
-sdimage/build.sh stage2  # piece 4 for stage 2
+fpga/build.sh            # Task F: pulls 17.5 GiB once, then about ten minutes
+sdimage/build.sh stage2  # Task I for stage 2
 ```
 
 Each script fetches the sources it needs into `work/` and leaves its results in `out/`. Both
@@ -102,7 +102,7 @@ parallel, and where it must stop and ask you (writing the card, anything to do w
 
 - An x86-64 Linux machine with Docker and git, about 60 GB of free disk for stage 2 (the
   Quartus image unpacks to 34 GB) or 10 GB for stage 1, and a network connection.
-- For piece 4 on x86: qemu-user with binfmt for aarch64 (Debian and Ubuntu: package
+- For Task I on x86: qemu-user with binfmt for aarch64 (Debian and Ubuntu: package
   `qemu-user-static`, or `qemu-user-binfmt`), because the Debian root filesystem is put together
   by running arm64 programs.
 - A microSD card of 4 GB or more, and the board's USB-C cable for the serial console (and for
@@ -114,10 +114,10 @@ All of this was developed on one board in November 2026.
 
 | | State |
 |---|---|
-| Piece 1 built by its script from a clean start | yes |
-| Piece 3 built by its script from a clean start; `fpga.rbf` identical to the one in use | yes |
-| Piece 2 built by its script (cross-compiled on x86) | **not yet**: the kernel in use was built natively on an arm64 machine with the same source, configuration and make targets |
-| Piece 4's image with stage 2 contents | built and inspected; **not yet booted as an image**: the board in use has the same files, put on its card by hand |
+| Task B built by its script from a clean start | yes |
+| Task F built by its script from a clean start; `fpga.rbf` identical to the one in use | yes |
+| Task K built by its script (cross-compiled on x86) | **not yet**: the kernel in use was built natively on an arm64 machine with the same source, configuration and make targets |
+| Task I's image with stage 2 contents | built and inspected; **not yet booted as an image**: the board in use has the same files, put on its card by hand |
 | Stage 2 on the board: boot with nothing typed, network, PTP trigger input and pulse output in a loop, UART loop, fan, HDMI console, SPI controller present | yes |
 | Stage 1 image on a board with untouched factory flash contents | **not yet**: an earlier image booted with Terasic's own design in the flash rebuilt from Terasic's sources, which is close to the factory state but not it |
 | Writing the read-back file to return to the factory state | **not yet**: the read-back verifies against the flash, the write back has not been needed |

@@ -3,7 +3,7 @@
 This repository takes a Terasic DE25-Nano from source to a running Debian system. You may be
 here to build it for someone, or to change the repository. Read `README.md` first: it has the
 overall picture, the order of work, and a table of what has and has not been tested. Each
-piece's own `README.md` has what it produces, what it needs first, its tools, its source and
+task's own `README.md` has what it produces, what it needs first, its tools, its source and
 its commands.
 
 ## Building it for someone
@@ -12,14 +12,14 @@ Before starting, check the machine and say what is missing: Docker usable by thi
 free disk (about 10 GB for stage 1, 60 GB with stage 2), and for the SD image on x86,
 `ls /proc/sys/fs/binfmt_misc/ | grep aarch64`.
 
-Tell the person before a large download. The Quartus image for piece 3 is 17.5 GiB.
+Tell the person before a large download. The Quartus image for Task F is 17.5 GiB.
 
 Order:
 
-- Pieces 1, 2 and 3 are independent until the last step of piece 3. Start them together, as
+- Tasks B, K and F are independent until the last step of Task F. Start them together, as
   background jobs, and report as each finishes: `u-boot/build.sh`, `kernel/build.sh`,
   `fpga/build.sh` (stage 2 only).
-- `fpga/build.sh` needs `out/u-boot/u-boot-spl-dtb.hex` only for its last step. If piece 1 has
+- `fpga/build.sh` needs `out/u-boot/u-boot-spl-dtb.hex` only for its last step. If Task B has
   not finished by then it stops with a message; run it again and it carries on.
 - `sdimage/build.sh stage1` or `stage2` last.
 
@@ -27,7 +27,7 @@ The scripts fetch sources into `work/` and write results to `out/`. Do not edit 
 `work/`, and do not change a pinned commit or tag to get past a failure. If a script fails,
 report the failing step and the end of its output; then look for the cause.
 
-Check each piece as its `README.md` says under "Commands" before going on.
+Check each task as its `README.md` says under "Commands" before going on.
 
 ### What only the person can do, or must approve
 
@@ -61,7 +61,7 @@ one, say so, and say whether it worked.
   them off for Claude Code).
 - Keep the "What has been tested" table in `README.md` true. Move a row to "yes" only for
   something that was actually run, and say on what.
-- Every piece's `README.md` keeps the same headings in the same order: what it produces, what
+- Every task's `README.md` keeps the same headings in the same order: what it produces, what
   it needs first, tools to download, source, commands. Its diagram and its text must agree
   with its `build.sh`.
 - The FPGA design is changed in `fpga/` (the Tcl scripts, `top-level.patch`, our own files),

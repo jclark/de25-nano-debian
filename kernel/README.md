@@ -1,4 +1,4 @@
-# Piece 2: Kernel
+# Task K: Kernel
 
 ```mermaid
 flowchart LR
@@ -13,14 +13,14 @@ flowchart LR
 
 | File | What it is | Where it goes |
 |---|---|---|
-| `out/kernel/Image` | The kernel, uncompressed | `/boot/vmlinuz-<release>` on the card, by piece 4 |
-| `out/kernel/modules.tar.gz` | The modules, as `usr/lib/modules/<release>/` | Unpacked into the root filesystem, by piece 4 |
-| `out/kernel/dtbs/socfpga_agilex5_de25_nano.dtb` | The board's device tree | `/boot/dtbs/<release>/` on the card, by piece 4 |
+| `out/kernel/Image` | The kernel, uncompressed | `/boot/vmlinuz-<release>` on the card, by Task I |
+| `out/kernel/modules.tar.gz` | The modules, as `usr/lib/modules/<release>/` | Unpacked into the root filesystem, by Task I |
+| `out/kernel/dtbs/socfpga_agilex5_de25_nano.dtb` | The board's device tree | `/boot/dtbs/<release>/` on the card, by Task I |
 | `out/kernel/config` | The configuration used | `/boot/config-<release>`, for reference |
 
 The device tree describes the board as it leaves the factory: what is wired to the
 processor's own pins. It has nothing that needs our FPGA design; that is in the overlay built
-by piece 3. It is built with symbols (`dtc -@`), so that U-Boot can apply the overlay to it.
+by Task F. It is built with symbols (`dtc -@`), so that U-Boot can apply the overlay to it.
 
 ## What it needs first
 

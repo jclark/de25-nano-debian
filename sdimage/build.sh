@@ -1,11 +1,11 @@
 #!/bin/sh
-# Build piece 4: the SD card image, from the outputs of the other pieces. See sdimage/README.md.
+# Build Task I: the SD card image, from the outputs of the other tasks. See sdimage/README.md.
 #
 # Usage: sdimage/build.sh stage1|stage2
 #   stage1  for a board with the factory flash contents: no FPGA design on the card
 #   stage2  for a board whose flash holds out/fpga/de25-nano.hps.jic: with fpga.rbf and fpga.dtbo
 # Output: out/sdimage/de25-nano-stage1.img or de25-nano-stage2.img
-# Needs: out/u-boot and out/kernel (pieces 1 and 2); for stage2 also out/fpga (piece 3).
+# Needs: out/u-boot and out/kernel (Tasks B and K); for stage2 also out/fpga (Task F).
 #        Docker; on a host that is not arm64, qemu-user binfmt for aarch64.
 #
 # Settings, as environment variables:
@@ -23,16 +23,16 @@ case $stage in stage1|stage2) ;; *) sed -n '2,16p' "$0"; exit 2 ;; esac
 in=$top/work/sdimage-input; out=$top/out/sdimage
 rm -rf "$in"; mkdir -p "$in/dtbs" "$out"
 need() { [ -f "$1" ] || fail "no $1: build $2 first"; }
-need "$top/out/u-boot/u-boot.itb" "piece 1 (u-boot/build.sh)"
-need "$top/out/kernel/Image" "piece 2 (kernel/build.sh)"
-need "$top/out/kernel/modules.tar.gz" "piece 2 (kernel/build.sh)"
-need "$top/out/kernel/dtbs/socfpga_agilex5_de25_nano.dtb" "piece 2 (kernel/build.sh)"
+need "$top/out/u-boot/u-boot.itb" "Task B (u-boot/build.sh)"
+need "$top/out/kernel/Image" "Task K (kernel/build.sh)"
+need "$top/out/kernel/modules.tar.gz" "Task K (kernel/build.sh)"
+need "$top/out/kernel/dtbs/socfpga_agilex5_de25_nano.dtb" "Task K (kernel/build.sh)"
 cp "$top/out/u-boot/u-boot.itb" "$top/out/kernel/Image" "$top/out/kernel/modules.tar.gz" "$in/"
 cp "$top/out/kernel/dtbs/socfpga_agilex5_de25_nano.dtb" "$in/dtbs/"
 [ ! -f "$top/out/kernel/config" ] || cp "$top/out/kernel/config" "$in/"
 if [ "$stage" = stage2 ]; then
-    need "$top/out/fpga/fpga.rbf" "piece 3 (fpga/build.sh)"
-    need "$top/out/fpga/fpga.dtbo" "piece 3 (fpga/build.sh)"
+    need "$top/out/fpga/fpga.rbf" "Task F (fpga/build.sh)"
+    need "$top/out/fpga/fpga.dtbo" "Task F (fpga/build.sh)"
     cp "$top/out/fpga/fpga.rbf" "$top/out/fpga/fpga.dtbo" "$in/"
 fi
 if [ -n "${SSH_KEYS:-}" ]; then

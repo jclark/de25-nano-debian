@@ -1,4 +1,4 @@
-# Piece 1: U-Boot, with TF-A
+# Task B: U-Boot, with TF-A
 
 ```mermaid
 flowchart LR
@@ -13,8 +13,8 @@ flowchart LR
 
 | File | What it is | Where it goes |
 |---|---|---|
-| `out/u-boot/u-boot.itb` | U-Boot, TF-A's `bl31.bin` and U-Boot's own device tree in one file | The FAT partition of the SD card, by piece 4. The first-stage loader in the flash loads it. |
-| `out/u-boot/u-boot-spl-dtb.hex` | The first-stage loader (SPL) | Into the flash image, by piece 3. Not used for stage 1: a factory board already has this loader in its flash. |
+| `out/u-boot/u-boot.itb` | U-Boot, TF-A's `bl31.bin` and U-Boot's own device tree in one file | The FAT partition of the SD card, by Task I. The first-stage loader in the flash loads it. |
+| `out/u-boot/u-boot-spl-dtb.hex` | The first-stage loader (SPL) | Into the flash image, by Task F. Not used for stage 1: a factory board already has this loader in its flash. |
 
 ## What it needs first
 
@@ -64,7 +64,7 @@ Check the result:
 
 ## How U-Boot boots the card
 
-Nothing is compiled into U-Boot for this; it is all on the card, and piece 4 puts it there:
+Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts it there:
 
 1. U-Boot's stock boot command scans the partitions marked bootable.
 2. On partition 1 (FAT) it finds the script `boot.scr` and runs it. The script names the

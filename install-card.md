@@ -1,6 +1,6 @@
 # Write the card, first boot
 
-Needs: an image from piece 4 ([sdimage/README.md](sdimage/README.md)), a microSD card of 4 GB or
+Needs: an image from Task I ([sdimage/README.md](sdimage/README.md)), a microSD card of 4 GB or
 more, the board's USB-C cable.
 
 Use the stage 1 image on a board with factory flash contents. Use the stage 2 image only
@@ -54,7 +54,7 @@ cables are handled.
 ## Check
 
 ```
-uname -r                        # the kernel built in piece 2
+uname -r                        # the kernel built in Task K
 ip -br addr show eth0           # an address from DHCP
 ls /sys/class/ptp/              # ptp0: the Ethernet MAC's clock
 sudo ethtool -T eth0            # hardware timestamping

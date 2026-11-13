@@ -1,11 +1,11 @@
-# Piece 3: FPGA design
+# Task F: FPGA design
 
 ```mermaid
 flowchart LR
   a0(["Altera's reference design<br/>at ALTERA_TAG"]) --> ap["Apply our changes<br/>apply.sh"]
   s1(["tcl/, top-level.patch,<br/>src/hdmi_scanout.sv"]) --> ap
   ap --> d[/"the design we build"/] --> q["Compile<br/>Quartus"] --> sof[/".sof"/] --> pfg["Combine<br/>Quartus"]
-  spl[/"u-boot-spl-dtb.hex<br/>from piece 1"/] --> pfg
+  spl[/"u-boot-spl-dtb.hex<br/>from Task B"/] --> pfg
   pfg --> jic[/"de25-nano.hps.jic"/]
   pfg --> rbf[/"fpga.rbf"/]
   s2(["overlay/ template"]) --> dtc["Build the overlay<br/>dtc"] --> dtbo[/"fpga.dtbo"/]
@@ -16,8 +16,8 @@ flowchart LR
 
 | File | What it is | Where it goes | Changes when |
 |---|---|---|---|
-| `out/fpga/fpga.rbf` | The fabric: the logic in the FPGA | The FAT partition of the SD card, by piece 4. U-Boot loads it at every boot. | the logic changes |
-| `out/fpga/fpga.dtbo` | The device tree overlay: what Linux must be told when the fabric is loaded | `/boot/dtbo/` on the card, by piece 4. Goes with `fpga.rbf`: both or neither. | the fabric's interface to Linux changes |
+| `out/fpga/fpga.rbf` | The fabric: the logic in the FPGA | The FAT partition of the SD card, by Task I. U-Boot loads it at every boot. | the logic changes |
+| `out/fpga/fpga.dtbo` | The device tree overlay: what Linux must be told when the fabric is loaded | `/boot/dtbo/` on the card, by Task I. Goes with `fpga.rbf`: both or neither. | the fabric's interface to Linux changes |
 | `out/fpga/de25-nano.hps.jic` | The first-stage image: how the processor's pins and memory are set up, which of its peripherals are routed to the FPGA, and the first-stage loader | The board's QSPI flash, written once over JTAG ([install-flash.md](../install-flash.md)) | the processor set-up or the loader changes; not when only the logic changes |
 
 `fpga.rbf` and the `.jic` belong together: a fabric is refused by a board whose flash holds a
@@ -40,8 +40,8 @@ JP1 pin 29 is 3.3 V and pin 30 is ground.
 
 ## What it needs first
 
-`out/u-boot/u-boot-spl-dtb.hex` from piece 1, for the last step only. The compile and the
-overlay need nothing, so start this piece at the same time as the others.
+`out/u-boot/u-boot-spl-dtb.hex` from Task B, for the last step only. The compile and the
+overlay need nothing, so start this task at the same time as the others.
 
 ## Tools to download
 
@@ -120,7 +120,7 @@ fpga/build.sh
 It clones Altera's tag into `work/agilex5-ed-hps-baseline`, runs `apply.sh` on it, compiles
 with Altera's own `make build` (which also generates the Platform Designer output and builds
 the self-test firmware), builds the overlay, and combines the compiled design with the loader
-from piece 1. The compile takes about ten minutes the first time and stops with an error if
+from Task B. The compile takes about ten minutes the first time and stops with an error if
 timing is not met.
 
 After changing a source, delete `work/agilex5-ed-hps-baseline` and run it again: Altera's
@@ -167,5 +167,5 @@ fpga/q fpga/overlay/build.sh          # from the top of the repository
 
 It needs only `dtc`. It fills the frame buffer's address and size into the template from
 `src/hdmi_scanout.sv` and compiles it. The overlay refers to the kernel's device tree by
-label (`&uart0`, `&gmac0`, `&i2c0`, `&i2c2`, `&spi0`), which is why piece 2 builds that tree
+label (`&uart0`, `&gmac0`, `&i2c0`, `&i2c2`, `&spi0`), which is why Task K builds that tree
 with symbols.

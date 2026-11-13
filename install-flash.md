@@ -1,10 +1,10 @@
 # Write the flash over JTAG (stage 2)
 
 The board's QSPI flash holds the first stage: how the processor is set up and the first-stage
-loader. Stage 2 replaces it once with `out/fpga/de25-nano.hps.jic` from piece 3
+loader. Stage 2 replaces it once with `out/fpga/de25-nano.hps.jic` from Task F
 ([fpga/README.md](fpga/README.md)). After that the FPGA design itself is a file on the SD card.
 
-Needs: piece 3 built; the Quartus container (`fpga/q`); the board's USB-C cable from the
+Needs: Task F built; the Quartus container (`fpga/q`); the board's USB-C cable from the
 machine with the container to the board; the board powered, with a card that boots (a stage 1
 card is fine).
 
