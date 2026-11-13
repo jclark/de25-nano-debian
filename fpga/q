@@ -8,22 +8,30 @@
 # The container image is Altera's Quartus Pro image from Docker Hub plus a few tools
 # (fpga/quartus/Dockerfile). The first use pulls 17.5 GiB.
 #
-# The whole repository is visible in the container at the same path, so run it from inside the
-# repository. Quartus keeps its licence in work/quartus-home: it fetches a free licence for this
+# The whole repository is visible in the container at the same path. So is the current
+# directory when it is somewhere else (a clone of the design, for apply.sh). Quartus keeps its licence in work/quartus-home: it fetches a free licence for this
 # FPGA family over HTTPS the first time the fitter runs. The licence is tied to a network
 # card's address, hence --net=host.
 #
 # --usb runs as root with --privileged and /dev/bus/usb, which the USB programming cable needs;
 # files it writes belong to root.
+# shellcheck disable=SC2086
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
 qhome=$top/work/quartus-home
 mkdir -p "$qhome"
 docker build -q -t de25-nano-quartus "$top/fpga/quartus" >/dev/null
+# The current directory, when it is outside the repository: mount the top of its git
+# repository, or the directory itself.
+extra=
+case $PWD/ in
+    "$top"/*) ;;
+    *) d=$(git rev-parse --show-toplevel 2>/dev/null || pwd); extra="-v $d:$d" ;;
+esac
 if [ "${1:-}" = --usb ]; then
     shift
     exec docker run --rm --net=host --privileged -v /dev/bus/usb:/dev/bus/usb \
-        -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" -w "$PWD" de25-nano-quartus "$@"
+        -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" $extra -w "$PWD" de25-nano-quartus "$@"
 fi
 exec docker run --rm --net=host --user "$(id -u):$(id -g)" \
-    -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" -w "$PWD" de25-nano-quartus "$@"
+    -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" $extra -w "$PWD" de25-nano-quartus "$@"
