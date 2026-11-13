@@ -1,9 +1,18 @@
-# Building
+# Bring-up
 
 A board is brought up in two stages. Stage 1 ends with Debian running from an SD card on a
 board that is otherwise untouched. Stage 2 goes on to replace the contents of the board's
 flash, which lets the FPGA design in this repository be loaded, and adds the header signals,
 fan control and HDMI.
+
+The two differ in how the FPGA design is stored. As the board is shipped, Terasic's whole
+FPGA design is in the flash, together with the first-stage loader, and the chip configures the
+FPGA from the flash at power-on. Changing anything in the design means writing the flash
+again over JTAG. Stage 2 follows the arrangement of Altera's reference design instead. The
+flash holds only the first stage: the SoC's configuration, including which of its peripherals
+are connected to the FPGA, and the loader. The FPGA design itself is a file on the SD card,
+which U-Boot loads into the FPGA at every boot, so changing the design does not need the flash
+to be written again.
 
 | | Stage 1 | Stage 2 |
 |---|---|---|
@@ -104,3 +113,17 @@ directories are created in this repository and are not in git.
 
 If an agent is doing this for you, [AGENTS.md](AGENTS.md) tells it the order, what can run in
 parallel, and where it must stop and ask you (writing the card, anything to do with the flash).
+
+## What has been tested
+
+All of this was developed on one board in November 2026.
+
+| | State |
+|---|---|
+| Task B built by its script from a clean start | yes |
+| Task K built by its script, cross-compiled on x86 | yes |
+| Task F built by its script from a clean start | yes |
+| Task I's image built from those and booted, with nothing changed by hand afterwards | yes, on a board in stage 2 |
+| Stage 2 on the board: boots with nothing typed; first-boot set-up, with the two optional files; network; fan; HDMI console | yes |
+| Stage 1: the image on a board with untouched factory flash contents | **not yet** |
+| Writing the read-back file to return to the factory state | **not yet** |

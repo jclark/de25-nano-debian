@@ -1,7 +1,7 @@
-# The system as built
+# How it works
 
-How a board set up from this repository boots and where things are stored, and what the FPGA
-design adds in stage 2.
+How the parts specific to this repository work: the boot arrangement, and the hardware support
+provided through the FPGA.
 
 ## Booting
 

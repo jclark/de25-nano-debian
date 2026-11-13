@@ -18,30 +18,20 @@ with `extpps`.
 Everything here is source, or a pointer to source, and the steps from source to a running
 board. There are no prebuilt binaries.
 
+Details are in the following pages:
+
+- **[bringup.md](bringup.md)**: how to build everything needed from source and install it on
+  a board.
+- **[how-it-works.md](how-it-works.md)**: how the parts specific to this repository work:
+  the boot arrangement, and the hardware support provided through the FPGA.
+
 The bring-up, and this repository documenting it, were done using Claude Fable 5.2 under my
 supervision.
-
-[building.md](building.md) takes you from source to a running board. [system.md](system.md)
-describes the system you end up with.
-
-## What has been tested
-
-All of this was developed on one board in November 2026.
-
-| | State |
-|---|---|
-| Task B built by its script from a clean start | yes |
-| Task K built by its script, cross-compiled on x86 | yes |
-| Task F built by its script from a clean start | yes |
-| Task I's image built from those and booted, with nothing changed by hand afterwards | yes, on a board in stage 2 |
-| Stage 2 on the board: boots with nothing typed; first-boot set-up, with the two optional files; network; fan; HDMI console | yes |
-| Stage 1: the image on a board with untouched factory flash contents | **not yet** |
-| Writing the read-back file to return to the factory state | **not yet** |
 
 ## Known limits
 
 - HDMI is 1920x1080 at 60 Hz only, with no monitor detection and no frame interrupt. One KVM
-  device refused the signal; a monitor and another capture device accept it.
+  device refusedsystem the signal; a monitor and another capture device accept it.
 - The board stores no Ethernet address. The first boot of a card makes one up and keeps it, so
   the address belongs to the card, not the board.
 - U-Boot and TF-A are built from Terasic's repositories, unchanged, with one configuration

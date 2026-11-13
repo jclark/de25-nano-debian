@@ -65,7 +65,7 @@ Check the result:
 ## How U-Boot boots the card
 
 Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts it there.
-[system.md](../system.md) has the whole sequence and the memory addresses. In
+[how-it-works.md](../how-it-works.md) has the whole sequence and the memory addresses. In
 short:
 
 1. U-Boot's stock boot command scans the partitions marked bootable.
