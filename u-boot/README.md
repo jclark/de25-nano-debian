@@ -35,12 +35,12 @@ its own toolchain name and the loader came out a different size.
   `580dcb5c4e10`, unchanged.
 - U-Boot: `https://github.com/terasic/u-boot-socfpga`, branch `de25-nano-v2025.01`, commit
   `d0f8813fd6bf`, unchanged. It is U-Boot 2025.01 with Altera's and Terasic's additions.
-- Ours: `de25-nano.fragment`, merged into Terasic's `socfpga_agilex5_de25_nano_defconfig`. It
+- Added here: `de25-nano.fragment`, merged into Terasic's `socfpga_agilex5_de25_nano_defconfig`. It
   sets one option, `CONFIG_OF_LIBFDT_OVERLAY=y`, which Terasic's configuration leaves off.
   Without it U-Boot has neither the `fdt apply` command nor the `fdtoverlays` line of the boot
   menu, and the device tree overlay for the FPGA design cannot be applied.
 
-Why Terasic's fork and not mainline U-Boot: the first-stage loader of a factory board is
+Why Terasic's U-Boot and not mainline U-Boot: the first-stage loader of a factory board is
 built from this source at this commit (the loader built here is the same as Terasic's prebuilt
 one apart from the build date), and the U-Boot on the card has to work with the loader in the
 flash.
@@ -64,15 +64,20 @@ Check the result:
 
 ## How U-Boot boots the card
 
-Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts it there:
+Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts it there.
+The top-level [README.md](../README.md) has the whole sequence and the memory addresses. In
+short:
 
 1. U-Boot's stock boot command scans the partitions marked bootable.
 2. On partition 1 (FAT) it finds the script `boot.scr` and runs it. The script names the
-   device tree file to load, sets the address overlays are loaded at, and loads the FPGA design
-   `fpga.rbf` if the file is there. Then it returns; U-Boot prints
-   `SCRIPT FAILED: continuing...`, which is what it prints whenever a script returns.
+   device tree file, gives the address and size limit for unpacking a compressed kernel, and
+   loads the FPGA design `fpga.rbf`; if that succeeds it also sets the address overlays are
+   loaded to. Then it returns; U-Boot prints `SCRIPT FAILED: continuing...`, which is what it
+   prints whenever a script returns.
 3. On partition 2 (ext4) it finds the boot menu `/boot/extlinux/extlinux.conf`, which names
-   the kernel, the directory with that kernel's device tree, and the overlay.
+   the kernel, the directory with that kernel's device tree, and the overlay. U-Boot applies
+   the overlay only if the script set its load address, that is, only if the FPGA design
+   loaded.
 
 U-Boot keeps its saved environment in `uboot.env` on the FAT partition. The image has none;
 `saveenv` at the U-Boot prompt creates it.

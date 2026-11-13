@@ -2,7 +2,7 @@
 
 This repository takes a Terasic DE25-Nano from source to a running Debian system. You may be
 here to build it for someone, or to change the repository. Read `README.md` first: it has the
-overall picture, the order of work, and a table of what has and has not been tested. Each
+overview, the order of work, and a table of what has and has not been tested. Each
 task's own `README.md` has what it produces, what it needs first, its tools, its source and
 its commands.
 
@@ -21,7 +21,7 @@ Order:
   `fpga/build.sh` (stage 2 only).
 - `fpga/build.sh` needs `out/u-boot/u-boot-spl-dtb.hex` only for its last step. If Task B has
   not finished by then it stops with a message; run it again and it carries on.
-- `sdimage/build.sh stage1` or `stage2` last.
+- `sdimage/build.sh` last. Without Task F it makes the image without the FPGA design.
 
 The scripts fetch sources into `work/` and write results to `out/`. Do not edit what is under
 `work/`, and do not change a pinned commit or tag to get past a failure. If a script fails,
@@ -40,7 +40,7 @@ Stop and ask before each of these, naming exactly what you are about to do:
   Do the read-back first and make sure the person has put the file somewhere safe before the
   write.
 - **Shutting down or restarting the board.**
-- Plugging cables, swapping the card, power cycling, and looking at the HDMI picture are theirs
+- Plugging cables, swapping the card, power cycling, and looking at the HDMI output are theirs
   to do; say plainly what you need and wait.
 
 Stage 1 changes nothing on the board itself: the card that came with the board, kept aside,
@@ -64,13 +64,13 @@ one, say so, and say whether it worked.
 - Every task's `README.md` keeps the same headings in the same order: what it produces, what
   it needs first, tools to download, source, commands. Its diagram and its text must agree
   with its `build.sh`.
-- The FPGA design is changed in `fpga/` (the Tcl scripts, `top-level.patch`, our own files),
+- The FPGA design is changed in `fpga/` (the Tcl scripts, `top-level.patch`, the added files),
   never in the applied copy. After a change: run `fpga/sim/run.sh` if the video block changed,
-  run `fpga/build.sh` from a clean `work/agilex5-ed-hps-baseline`, then make the fork's
-  branch again as `fpga/README.md` describes. The fork's branch is never edited by hand.
+  run `fpga/build.sh` from a clean `work/agilex5-ed-hps-baseline`, then make the
+  applied design's branch again as `fpga/README.md` describes. That branch is never edited by hand.
 - `top-level.patch` is against Altera's files as the Tcl scripts leave them, not against
   Altera's originals: the scripts add lines to the `.qsf` first.
-- A change to the FPGA design that changes what the processor routes to the FPGA
+- A change to the FPGA design that changes which SoC peripherals are routed to the FPGA
   (`tcl/hps_connections.tcl`) changes the first-stage image, so boards need their flash
   written again. A change to the logic alone does not. Say which it is.
 - The frame buffer's address and size are written in one place, `fpga/src/hdmi_scanout.sv`.
