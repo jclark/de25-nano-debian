@@ -78,13 +78,38 @@ Ours, in this directory, applied to a clean copy of that design by `apply.sh`:
 | `overlay/` | The overlay template and its build script |
 
 The scripts in `tcl/` are run by Quartus's `qsys-script`; they change the Platform Designer
-files (`.qsys`, `.ip`), which are machine-written and not meant to be edited by hand. The
-result of `apply.sh` is the complete design. Keep a copy of it as a commit on a branch of a
-fork of Altera's repository, one branch for each Altera tag, made only by running `apply.sh`
-and never edited by hand: then the design can be built without the apply step, it survives
-Altera's repository changing, and there is a known good state to go back to when a newer tag
-does not take the changes. `build.sh` builds from such a branch when `DESIGN_REPO` and
-`DESIGN_REF` name it.
+files (`.qsys`, `.ip`), which are machine-written and not meant to be edited by hand.
+
+### The applied design, kept in a fork
+
+The result of `apply.sh` is the complete design. A copy of it is kept as one commit on top of
+Altera's tag, in a fork of Altera's repository:
+
+`https://github.com/jclark/agilex5-ed-hps-baseline`, branch `de25-nano-debian/26.1.1`
+
+That branch is made only by running `apply.sh` and is never edited by hand; its commit message
+names the commit of this repository that made it. It is there so that the design can be built
+without the apply step, so that it survives Altera's repository changing, and so that there is
+a known good state to go back to when a newer Altera tag does not take the changes. A newer
+tag gets a new branch.
+
+To build from the fork instead of applying the changes yourself:
+
+```
+DESIGN_REPO=https://github.com/jclark/agilex5-ed-hps-baseline DESIGN_REF=de25-nano-debian/26.1.1 fpga/build.sh
+```
+
+To make such a branch (for a changed `fpga/`, or a new Altera tag named in `ALTERA_TAG`), in a
+clone of the fork with Altera's repository as a remote:
+
+```
+git checkout -b de25-nano-debian/<release> <Altera's tag>
+cd terasic-de25-nano-devkit/baseline-a55
+<this repository>/fpga/q <this repository>/fpga/apply.sh .
+git add -A && git commit        # say which commit of this repository made it
+```
+
+Then build it before publishing it.
 
 ## Commands
 
