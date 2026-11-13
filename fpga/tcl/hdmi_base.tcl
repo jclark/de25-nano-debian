@@ -1,6 +1,6 @@
-# Platform Designer part of our own HDMI video path, added to baseline_top.qsys:
+# Platform Designer part of the HDMI video path, added to baseline_top.qsys:
 #  - a 148.5 MHz pixel clock PLL fed from the board's 50 MHz CLOCK2_50 (1920x1080 at 60 Hz);
-#  - an address span extender in front of the HPS FPGA-to-SDRAM port (40-bit address, 256-bit
+#  - an address span extender in front of the SoC's FPGA-to-SDRAM port (40-bit address, 256-bit
 #    data), exported to the top level, where src/hdmi_scanout.sv reads the frame buffer through it.
 # Altera's self-test master is disconnected from that port: it takes one master.
 # Run: qsys-script --quartus-project=top.qpf --system-file=baseline_top.qsys --script=hdmi_base.tcl

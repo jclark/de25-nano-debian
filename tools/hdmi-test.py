@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Test pictures for the DE25-Nano HDMI scan-out, written straight into /dev/fb0 (1920x1080 x8r8g8b8).
-#   hdmi-test.py pattern [N]   the test picture, with step number N (0-7) in the top band
+# Test patterns for the DE25-Nano HDMI scan-out, written straight into /dev/fb0 (1920x1080 x8r8g8b8).
+#   hdmi-test.py pattern [N]   the test pattern, with step number N (0-7) in the top band
 #   hdmi-test.py sweep [SECS]  step the ADV7513 clock delay (0xBA) through its 8 settings, SECS each
 #   hdmi-test.py move [SECS] [RATE]   a bar moving across the ramps, RATE redraws a second
 #                              (default: as fast as possible, a heavy load on the memory)

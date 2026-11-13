@@ -1,4 +1,4 @@
-# Processor-to-FPGA connections added to Altera's design (the set fixed by the first-stage image):
+# SoC-to-FPGA connections added to Altera's design (the set fixed by the first-stage image):
 #   EMAC0 PTP signals, UART0, I2C0 (HDMI and fan chip bus), I2C_EMAC0 (spare, header), SPI master 0.
 # Run: qsys-script --quartus-project=top.qpf --system-file=hps_subsys.qsys --script=hps_connections.tcl
 package require qsys

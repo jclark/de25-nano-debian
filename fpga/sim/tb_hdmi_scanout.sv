@@ -10,7 +10,7 @@
 //  - checks that the pixel shown at screen position (x, y) is pixel number y*1920 + x;
 //  - runs Terasic's timing generator (vga_generator.v, known to work on this board) on the same
 //    clock with the 1080p60 parameters of Terasic's vpg.v, and compares DE, HSYNC and VSYNC with
-//    ours clock by clock over one frame, both lined up on the leading edge of VSYNC.
+//    this block's clock by clock over one frame, both lined up on the leading edge of VSYNC.
 //
 // Run: sim/run.sh   (Icarus Verilog in the de25-sim container)
 `timescale 1ps/1ps
@@ -255,14 +255,14 @@ module tb;
 `endif
 
     // Record one frame of each, starting at the clock of its own vsync leading edge.
-    // Terasic's syncs are active low (the line rests high and pulses low), ours active high.
+    // Terasic's syncs are active low (the line rests high and pulses low), this block's active high.
     logic [2:0] ours [0:FRAME-1];
     logic [2:0] theirs [0:FRAME-1];
     int   o_n = -1, t_n = -1, o_vs_seen = 0, t_vs_seen = 0;
     logic t_vs_q = 1, o_vs_q2 = 0;
     always @(posedge pix_clk) begin
         o_vs_q2 <= vid_vs; t_vs_q <= t_vs;
-        // ours: record from the 3rd vsync leading edge (a frame with data)
+        // this block: record from the 3rd vsync leading edge (a frame with data)
         if (vid_vs && !o_vs_q2) begin o_vs_seen++; if (o_vs_seen == 3) o_n = 0; end
         if (o_n >= 0 && o_n < FRAME) begin ours[o_n] = {vid_de, vid_hs, vid_vs}; o_n++; end
         // theirs: leading edge is the falling edge
@@ -274,7 +274,7 @@ module tb;
         int dde = 0, dhs = 0, dvs = 0, shown = 0;
         int o_hs_first = -1, t_hs_first = -1, o_de_first = -1, t_de_first = -1, o_vs_len = 0, t_vs_len = 0, o_de = 0, t_de_n = 0;
         if (o_n != FRAME || t_n != FRAME) begin
-            $display("COMPARE: not enough recorded (ours %0d, Terasic %0d of %0d clocks)", o_n, t_n, FRAME);
+            $display("COMPARE: not enough recorded (this block %0d, Terasic %0d of %0d clocks)", o_n, t_n, FRAME);
         end else begin
         for (int i = 0; i < FRAME; i++) begin
             if (ours[i][2] != theirs[i][2]) dde++;
@@ -282,7 +282,7 @@ module tb;
             if (ours[i][0] != theirs[i][0]) dvs++;
             if (ours[i] != theirs[i] && shown < 6) begin
                 shown++;
-                $display("  first differences: clock %0d after vsync start (line %0d, clock %0d): ours de/hs/vs=%b  Terasic=%b",
+                $display("  first differences: clock %0d after vsync start (line %0d, clock %0d): this block de/hs/vs=%b  Terasic=%b",
                          i, i / HT, i % HT, ours[i], theirs[i]);
             end
             if (ours[i][1]   && o_hs_first < 0 && i > 0 && !ours[i-1][1])   o_hs_first = i;
@@ -294,11 +294,11 @@ module tb;
         end
         $display("COMPARE with Terasic's generator over one frame (%0d clocks), both starting at the vsync leading edge:", FRAME);
         $display("  clocks where DE differs: %0d   hsync differs: %0d   vsync differs: %0d", dde, dhs, dvs);
-        $display("  first hsync start after vsync start: ours clock %0d, Terasic clock %0d", o_hs_first, t_hs_first);
-        $display("  first DE: ours clock %0d (line %0d, clock %0d), Terasic clock %0d (line %0d, clock %0d)",
+        $display("  first hsync start after vsync start: this block clock %0d, Terasic clock %0d", o_hs_first, t_hs_first);
+        $display("  first DE: this block clock %0d (line %0d, clock %0d), Terasic clock %0d (line %0d, clock %0d)",
                  o_de_first, o_de_first / HT, o_de_first % HT, t_de_first, t_de_first / HT, t_de_first % HT);
-        $display("  vsync active clocks: ours %0d, Terasic %0d   DE active clocks: ours %0d, Terasic %0d", o_vs_len, t_vs_len, o_de, t_de_n);
-        $display("  sync polarity: ours pulses high (CEA-861 format 16: positive); Terasic's pulses low");
+        $display("  vsync active clocks: this block %0d, Terasic %0d   DE active clocks: this block %0d, Terasic %0d", o_vs_len, t_vs_len, o_de, t_de_n);
+        $display("  sync polarity: this block pulses high (CEA-861 format 16: positive); Terasic's pulses low");
         end
     endtask
 

@@ -1,5 +1,5 @@
-// HDMI scan-out for the DE25-Nano: shows a 1920x1080, 60 Hz picture from a frame buffer in HPS
-// memory on the board's ADV7513 HDMI transmitter.
+// HDMI scan-out for the DE25-Nano: outputs 1920x1080, 60 Hz video from a frame buffer in system
+// RAM on the board's ADV7513 HDMI transmitter.
 //
 // Frame buffer: 1920 x 1080 pixels, 4 bytes each (x8r8g8b8: blue in the lowest byte), rows top to
 // bottom with no padding, at the fixed byte address FB_BASE. It is read through an Avalon
@@ -15,11 +15,11 @@
 // black and the restart happens in the blanking after it. The raster never stops.
 //
 // The FIFO holds 2**AW words of 8 pixels: by default 4096 words, about 17 lines or 220
-// microseconds of video, so that delays on the memory port (the processor uses the same memory)
-// do not empty it. With 128 words (7 microseconds) the picture flickered or went black below
+// microseconds of video, so that delays on the memory port (the CPU uses the same memory)
+// do not empty it. With 128 words (7 microseconds) the display flickered or went black below
 // some line whenever Linux was busy writing to memory.
 //
-// No registers: the picture is whatever is in memory at FB_BASE.
+// No registers: the output is whatever is in memory at FB_BASE.
 
 module hdmi_scanout #(
     parameter logic [31:0] FB_BASE = 32'hBF00_0000,

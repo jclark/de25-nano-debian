@@ -30,7 +30,7 @@ prints `sent 224 received 224 match True`.
 
 ## HDMI
 
-With a monitor connected. `hdmi-test.py` writes test pictures straight into the frame buffer
+With a monitor connected. `hdmi-test.py` writes test patterns straight into the frame buffer
 (`/dev/fb0`); run it as root.
 
 ```
@@ -39,7 +39,7 @@ sudo python3 hdmi-test.py sweep 5        # step the transmitter's clock delay, 5
 sudo python3 hdmi-test.py move 10        # a moving bar: a heavy load on the memory
 ```
 
-`sweep` is for finding the range of clock delays that gives a clean picture after the FPGA
+`sweep` is for finding the range of clock delays that gives a clean image after the FPGA
 design's HDMI pin timing has changed; the delay in use is set in
 `/usr/local/sbin/de25-hdmi-init`.
 

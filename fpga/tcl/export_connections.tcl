@@ -1,4 +1,4 @@
-# Pass the added processor-to-FPGA connections up one level of the design.
+# Pass the added SoC-to-FPGA connections up one level of the design.
 # Usage: qsys-script --quartus-project=top.qpf --system-file=<level>.qsys \
 #          --script=export_connections.tcl <instance>
 # Run for hps_subsys.qsys (u_agilex_hps), shell_subsys.qsys (its hps_subsys instance) and

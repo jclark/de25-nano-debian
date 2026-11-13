@@ -6,7 +6,7 @@
 #   PLUSARGS  +frames=3 +seed=3 +stress=1 +stall=600 +bstall=100 (see the top of tb_hdmi_scanout.sv)
 #   TERASIC_HDMI  optional: the directory Demonstration/FPGA/HDMI_TX/V_HDMI of Terasic's resource
 #             package for the board (their site asks for registration). With it, the test bench
-#             also compares our syncs and data enable, clock by clock, with Terasic's
+#             also compares this block's syncs and data enable, clock by clock, with Terasic's
 #             vga_generator.v. Without it that one comparison is skipped; the checks against
 #             CEA-861 and of every pixel are made either way.
 #

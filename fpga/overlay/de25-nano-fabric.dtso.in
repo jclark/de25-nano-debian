@@ -3,8 +3,8 @@
  * Device tree overlay for the Terasic DE25-Nano with this FPGA design loaded.
  *
  * The board's own device tree (socfpga_agilex5_de25_nano.dts in the kernel)
- * describes what is wired to the processor's own pins. This overlay adds what
- * the processor reaches only through the FPGA design in this repository. The
+ * describes what is wired to the SoC's own pins. This overlay adds what
+ * the SoC reaches only through the FPGA design in this repository. The
  * boot loader applies it after it has loaded the design (fpga.rbf), and boots
  * the board's tree unchanged when it has not.
  *
@@ -68,7 +68,7 @@
 };
 
 /*
- * HDMI. The design shows the memory at @FB_BASE@ as a picture of
+ * HDMI. The design scans out the memory at @FB_BASE@ as a frame of
  * @FB_WIDTH@ x @FB_HEIGHT@ pixels, 4 bytes a pixel, with no registers. Linux
  * must keep its own data out of that memory, and can use it as a frame buffer.
  */

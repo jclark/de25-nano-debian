@@ -8,10 +8,10 @@
 # Needs: Docker, git, network access; out/u-boot/u-boot-spl-dtb.hex from Task B (for the
 #        last step only). The first run pulls the Quartus image (17.5 GiB).
 #
-# The design is Altera's reference design at the tag in fpga/ALTERA_TAG with our changes
+# The design is Altera's reference design at the tag in fpga/ALTERA_TAG with this repository's changes
 # applied by fpga/apply.sh. It is fetched and prepared once in
 # work/agilex5-ed-hps-baseline. To start again from clean, delete that directory.
-# To build from a repository that already holds the applied design (our fork), set
+# To build from a repository that already holds the applied design (jclark/agilex5-ed-hps-baseline), set
 # DESIGN_REPO and DESIGN_REF.
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
@@ -25,7 +25,7 @@ DESIGN_REF=${DESIGN_REF:-$(cat "$top/fpga/ALTERA_TAG")}
 src=$work/agilex5-ed-hps-baseline
 design=$src/terasic-de25-nano-devkit/baseline-a55
 
-# 1. The design's source: Altera's, with our changes applied.
+# 1. The design's source: Altera's, with the changes applied.
 [ -d "$src/.git" ] || git clone --depth 1 -b "$DESIGN_REF" "$DESIGN_REPO" "$src"
 [ -f "$design/top.qpf" ] || fail "no design in $design"
 if [ ! -e "$design/src/hdmi_scanout.sv" ]; then
@@ -44,7 +44,7 @@ sof=$design/output_files/baseline_a55.sof
 (cd "$top" && "$q" "$top/fpga/overlay/build.sh" "$out/fpga.dtbo")
 
 # 4. Combine with the first-stage loader from Task B. One command gives both files:
-#    de25-nano.hps.jic   first stage (processor set-up and loader), for the flash
+#    de25-nano.hps.jic   first stage (the SoC's configuration and the loader), for the flash
 #    de25-nano.core.rbf  the fabric, loaded by U-Boot from the SD card
 # flash_loader names the FPGA as the programmer of Quartus 26.1.1 identifies this board's.
 spl=$top/out/u-boot/u-boot-spl-dtb.hex

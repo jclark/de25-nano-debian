@@ -6,7 +6,7 @@
 # (datasheet: tVSU, tVHLD). These constraints make the build check that at the FPGA's pins.
 # They do not know the board: the clock pin is in a 1.1 V bank and the data pins are 3.3 V, so
 # the board has some extra delay in the clock line that no report shows. A build with about
-# 3.8 ns before the edge and 1.9 ns after it at the pins gave a clean picture (2026-11-13).
+# 3.8 ns before the edge and 1.9 ns after it at the pins gave a clean image (2026-11-13).
 set hdmi_pix_clock [get_clocks {u_baseline_top|hdmi_pll|altera_iopll_inst_outclk0}]
 create_generated_clock -name hdmi_tx_clk_pin -source [get_clock_info -targets $hdmi_pix_clock] [get_ports {hdmi_tx_clk}]
 set hdmi_video_pins [get_ports {hdmi_tx_d[*] hdmi_tx_de hdmi_tx_hs hdmi_tx_vs}]
