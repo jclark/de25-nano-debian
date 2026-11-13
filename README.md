@@ -30,9 +30,13 @@ Stage 2 needs Altera's Quartus Pro, which is free for this FPGA and comes as a D
 
 ## The tasks
 
-There are four tasks, each a build from source. Each has a letter. A rectangle is a build, a slanted box is a file, a
-trapezoid is something you do by hand, a cylinder is storage on the board. Solid arrows are
-needed for stage 1; dashed arrows only for stage 2.
+There are four tasks, each a build from source, each with a letter: B for U-Boot (the boot
+loader), K for the kernel, F for the FPGA design, I for the image. The letters are names, not
+an order.
+
+In the diagram a rectangle is a task, a slanted box is a file, a trapezoid is something you do
+by hand, and a cylinder is storage on the board. Solid arrows are needed for stage 1; dashed
+arrows only for stage 2.
 
 ```mermaid
 flowchart LR
