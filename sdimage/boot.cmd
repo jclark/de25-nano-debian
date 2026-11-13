@@ -8,19 +8,30 @@
 # Wrap it after any change:
 #   mkimage -A arm64 -T script -C none -n "DE25-Nano boot script" -d boot.cmd boot.scr
 
-# The device tree the menu's "fdtdir" line looks for, and where "fdtoverlays" loads overlays.
-setenv fdtfile socfpga_agilex5_de25_nano.dtb
-setenv fdtoverlay_addr_r 0x87000000
+# The device tree: the boot menu's "fdtdir" line names the kernel package's device tree
+# directory, and U-Boot loads this file from it.
+setenv fdtfile intel/socfpga_agilex5_de25_nano.dtb
 
-# Stage 2: load the FPGA design if there is one beside this script. This works only when the
-# flash holds the matching first-stage image. The device tree overlay that goes with the design
-# is named on the "fdtoverlays" line of the boot menu.
+# Overlays named on the boot menu's "fdtoverlays" line are applied only if this variable, the
+# address they are loaded to, is set. It is set below, when the FPGA design has loaded.
+setenv fdtoverlay_addr_r
+
+# The kernel in a Debian kernel package is compressed. U-Boot unpacks it to this address
+# before starting it; the size is the largest compressed kernel it will accept.
+setenv kernel_comp_addr_r 0x90000000
+setenv kernel_comp_size 0x2000000
+
+# The FPGA design, fpga.rbf, beside this script. It loads only on a board whose flash holds the
+# matching first-stage image. A board with the factory flash contents refuses it: the boot
+# then carries on without the design and without its device tree overlay, which is all a
+# factory board can use.
 if test -e mmc 0:1 fpga.rbf; then
     if load mmc 0:1 ${kernel_addr_r} fpga.rbf && fpga load 0 ${kernel_addr_r} ${filesize}; then
         bridge enable
+        setenv fdtoverlay_addr_r 0x87000000
     else
-        echo "*** FPGA design fpga.rbf did not load ***"
+        echo "*** fpga.rbf was not accepted: booting without the FPGA design ***"
     fi
 else
-    echo "No fpga.rbf on the card: FPGA design left as it is"
+    echo "No fpga.rbf on the card: booting without the FPGA design"
 fi

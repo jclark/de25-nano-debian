@@ -4,33 +4,36 @@
 # Usage: build-image INPUT_DIR OUTPUT_DIR
 #
 # INPUT_DIR holds:
-#   Image            arm64 kernel image
-#   modules.tar.gz   its modules, as usr/lib/modules/<release>/...
-#   dtbs/socfpga_agilex5_de25_nano.dtb
-#                    the board's device tree from the same kernel build, built with symbols
+#   linux-image-<release>_<version>_arm64.deb
+#                    the kernel as a Debian package (kernel, modules, device trees), from the
+#                    kernel's own "make bindeb-pkg"; the board's device tree in it must be
+#                    built with symbols
 #   u-boot.itb       U-Boot and TF-A, built from Terasic's source with overlay support; it has to
 #                    match the first-stage loader in the board's QSPI flash
 #   config           optional, the kernel configuration
 #   authorized_keys  optional, ssh keys for the user
-#   fpga.rbf         optional, stage 2: the FPGA design (core image). Use it only on a board whose
-#   fpga.dtbo          flash holds the matching first-stage image. With it goes fpga.dtbo, the
-#                      device tree overlay built with the design. Both or neither.
+#   fpga.rbf         optional: the FPGA design (core image), and with it fpga.dtbo, the device
+#   fpga.dtbo          tree overlay built with the design. Both or neither. U-Boot tries to load
+#                      the design at every boot; a board whose flash has the factory contents
+#                      refuses it and boots without it and without the overlay, so an image
+#                      with these files serves a board before and after its flash is written.
 #
-# Without fpga.rbf the image is for a factory board (stage 1): console and network. The files for
-# the fan and HDMI are installed all the same and stay idle. To go to stage 2 later, on the card:
-# copy fpga.rbf to /boot/firmware and fpga.dtbo to /boot/dtbo, and take the "#" off the
-# fdtoverlays line in /boot/extlinux/extlinux.conf.
+# Without them the image has no FPGA design: console and network only, on any board. The files
+# for the fan and HDMI are installed all the same and stay idle. To add the design later, on
+# the card: copy fpga.rbf to /boot/firmware and fpga.dtbo to /boot/dtbo, and run u-boot-update.
 #
 # Settings, as environment variables (defaults in mkimage-inner.sh):
 #   SUITE (trixie)  HOSTNAME_ (de25-nano)  USER_ (debian)
-#   MAC (none: U-Boot invents one each boot)  IMAGE_MB (3072)  IMAGE_NAME (de25-nano.img)
+#   MAC (none: made up at the first boot and kept)  IMAGE_MB (3072)  IMAGE_NAME (de25-nano.img)
 #
 # The user's password is the user name. With authorized_keys present, ssh accepts keys only;
-# without, the password has to be changed at first login. Partition 2 grows to fill the card at first boot.
+# without, the password has to be changed at first login. At the first boot the card also
+# reads optional hostname and authorized_keys files from its FAT partition, and partition 2
+# grows to fill the card.
 #
 # Needs Docker, and on a host that is not arm64, qemu-user binfmt for aarch64.
 set -eu
-[ $# -eq 2 ] || { sed -n '2,31p' "$0"; exit 2; }
+[ $# -eq 2 ] || { sed -n '2,34p' "$0"; exit 2; }
 here=$(dirname "$(readlink -f "$0")")
 in=$(readlink -f "$1"); out=$(readlink -f "$2"); mkdir -p "$out"
 docker build -q -t de25-nano-sdimage "$here" >/dev/null

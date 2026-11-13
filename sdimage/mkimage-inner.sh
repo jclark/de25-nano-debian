@@ -8,10 +8,10 @@ set -eu
 : "${IMAGE_MB:=3072}" "${FAT_MB:=64}" "${DISK_ID:=0xde250001}" "${MAC:=}"
 : "${OWNER:=0:0}"
 
-KREL=$(tar tzf /in/modules.tar.gz | sed -n 's|^usr/lib/modules/\([^/]*\)/$|\1|p' | head -1)
-[ -n "$KREL" ] || { echo "cannot find the kernel release in modules.tar.gz" >&2; exit 1; }
-DTB=socfpga_agilex5_de25_nano.dtb      # the name U-Boot looks for: fdtfile in boot.cmd
-[ -f "/in/dtbs/$DTB" ] || { echo "no /in/dtbs/$DTB" >&2; exit 1; }
+DEB=$(ls /in/linux-image-*_arm64.deb 2>/dev/null | head -1)
+[ -n "$DEB" ] || { echo "no linux-image-*_arm64.deb in the input directory" >&2; exit 1; }
+KREL=$(dpkg-deb -f "$DEB" Package | sed 's/^linux-image-//')
+DTB=intel/socfpga_agilex5_de25_nano.dtb    # under the package's device tree directory; fdtfile in boot.cmd
 FABRIC=no
 if [ -f /in/fpga.rbf ] || [ -f /in/fpga.dtbo ]; then
   [ -f /in/fpga.rbf ] && [ -f /in/fpga.dtbo ] || { echo "fpga.rbf and fpga.dtbo go together" >&2; exit 1; }
@@ -26,44 +26,35 @@ mkdir -p "$work"; find "$work" -mindepth 1 -maxdepth 1 -exec rm -rf {} +; mkdir 
 
 # 1. Debian root filesystem from the archive.
 mmdebstrap --architectures=arm64 --variant=important \
-  --include=systemd-sysv,systemd-resolved,systemd-timesyncd,udev,kmod,openssh-server,sudo,ca-certificates,locales,iproute2,iputils-ping,ethtool,pciutils,usbutils,less,vim-tiny,curl,fdisk,cloud-guest-utils,e2fsprogs,dosfstools,dbus,libnss-systemd,i2c-tools,linuxptp \
+  --include=systemd-sysv,systemd-resolved,systemd-timesyncd,udev,kmod,openssh-server,sudo,ca-certificates,locales,iproute2,iputils-ping,ethtool,pciutils,usbutils,less,vim-tiny,curl,fdisk,cloud-guest-utils,e2fsprogs,dosfstools,dbus,libnss-systemd,i2c-tools,linuxptp,u-boot-menu \
   "$SUITE" "$root"
 
-# 2. Kernel: image, device trees, modules. (A kernel .deb would replace this step.)
-mkdir -p "$root/boot/dtbs/$KREL" "$root/boot/extlinux" "$root/boot/firmware" "$root/boot/dtbo"
-cp /in/Image "$root/boot/vmlinuz-$KREL"
-cp /in/dtbs/*.dtb "$root/boot/dtbs/$KREL/"
-[ ! -f /in/config ] || cp /in/config "$root/boot/config-$KREL"
-tar xzf /in/modules.tar.gz -C "$root" --no-same-owner
-chroot "$root" depmod "$KREL"
-
-# 3. Boot menu, read by U-Boot from this partition after it has run boot.scr on partition 1.
-# fdtdir: U-Boot loads <fdtdir>/<fdtfile>, and boot.scr sets fdtfile to the board's tree, so each
-# kernel keeps its own device tree. fdtoverlays: the overlay for the FPGA design, applied on top.
-# console=tty0 is the HDMI console when the design is loaded; the last console named, the
-# serial one, is where /dev/console goes.
-if [ "$FABRIC" = yes ]; then
-  cp /in/fpga.dtbo "$root/boot/dtbo/fpga.dtbo"
-  overlay_line="    fdtoverlays /boot/dtbo/fpga.dtbo"
-else
-  overlay_line="    #fdtoverlays /boot/dtbo/fpga.dtbo"
-fi
-cat > "$root/boot/extlinux/extlinux.conf" <<EOF
-# U-Boot boot menu for the DE25-Nano. Paths are on this partition.
-# The fdtoverlays line is for the FPGA design in /boot/firmware/fpga.rbf: leave it commented
-# out ("#") when there is no design on the card.
-default linux
-menu title DE25-Nano
-prompt 0
-timeout 30
-
-label linux
-    menu label Debian, Linux $KREL
-    linux /boot/vmlinuz-$KREL
-    fdtdir /boot/dtbs/$KREL/
-$overlay_line
-    append root=PARTUUID=$PARTUUID_ROOT rw rootwait console=tty0 console=ttyS0,115200 earlycon
+# 2. What the boot menu is written from, before the kernel is installed: installing a kernel
+# package runs Debian's u-boot-update (package u-boot-menu), which writes
+# /boot/extlinux/extlinux.conf with an entry for every installed kernel. It takes the root
+# file system from /etc/fstab, the kernel command line and other settings from
+# /etc/default/u-boot, the device tree directory of each kernel from its package
+# (/usr/lib/linux-image-<release>/), and every overlay it finds in /boot/dtbo.
+mkdir -p "$root/boot/firmware" "$root/boot/dtbo"
+cat > "$root/etc/fstab" <<EOF
+PARTUUID=$PARTUUID_ROOT  /               ext4  defaults,noatime  0 1
+PARTUUID=$PARTUUID_FAT  /boot/firmware  vfat  defaults,noatime  0 2
 EOF
+install -m 644 /sd/files/u-boot.default "$root/etc/default/u-boot"
+[ "$FABRIC" = no ] || cp /in/fpga.dtbo "$root/boot/dtbo/fpga.dtbo"
+
+# 3. The kernel package: kernel, modules, device trees.
+cp "$DEB" "$root/tmp/kernel.deb"
+chroot "$root" dpkg -i /tmp/kernel.deb
+rm -f "$root/tmp/kernel.deb"
+chroot "$root" u-boot-update
+[ -f "$root/usr/lib/linux-image-$KREL/$DTB" ] || { echo "the kernel package has no $DTB" >&2; exit 1; }
+menu=$root/boot/extlinux/extlinux.conf
+grep -q "fdtdir /usr/lib/linux-image-$KREL/" "$menu" || { echo "the boot menu has no fdtdir line for $KREL" >&2; exit 1; }
+if [ "$FABRIC" = yes ]; then
+  grep -q "fdtoverlays .*fpga.dtbo" "$menu" || { echo "the boot menu does not name the overlay" >&2; exit 1; }
+fi
+cat "$menu"
 
 # 3a. Files for what the FPGA design adds. They do nothing without it: the udev rule waits for
 # the fan controller, and the HDMI unit has a condition on the I2C bus that the overlay enables.
@@ -77,10 +68,6 @@ chroot "$root" systemctl enable de25-hdmi-init.service >/dev/null
 # 4. System configuration.
 echo "$HOSTNAME_" > "$root/etc/hostname"
 printf '127.0.0.1\tlocalhost\n127.0.1.1\t%s\n::1\tlocalhost ip6-localhost ip6-loopback\n' "$HOSTNAME_" > "$root/etc/hosts"
-cat > "$root/etc/fstab" <<EOF
-PARTUUID=$PARTUUID_ROOT  /               ext4  defaults,noatime  0 1
-PARTUUID=$PARTUUID_FAT  /boot/firmware  vfat  defaults,noatime  0 2
-EOF
 mkdir -p "$root/etc/systemd/network"
 cat > "$root/etc/systemd/network/20-wired.network" <<EOF
 [Match]
@@ -90,14 +77,17 @@ Type=ether
 DHCP=yes
 EOF
 if [ -n "$MAC" ]; then
-  # The board has no stored MAC address and U-Boot invents one at each boot.
+  # The board has no stored MAC address and U-Boot invents one at each boot. A link file that
+  # matches replaces Debian's default one, so the default naming policy is restated: the
+  # interface keeps its usual Debian name, end0.
   cat > "$root/etc/systemd/network/10-emac0.link" <<EOF
 [Match]
 Path=platform-10810000.ethernet
 
 [Link]
 MACAddress=$MAC
-NamePolicy=kernel
+NamePolicy=keep kernel database onboard slot path
+AlternativeNamesPolicy=database onboard slot path mac
 EOF
 fi
 chroot "$root" systemctl enable systemd-networkd systemd-resolved systemd-timesyncd ssh >/dev/null
@@ -122,33 +112,12 @@ else
   chroot "$root" chage -d 0 "$USER_"
 fi
 
-# First boot: new ssh host keys, grow partition 2 and its filesystem to the size of the card.
+# First boot (files/de25-firstboot): new ssh host keys, partition 2 and its file system grown
+# to the size of the card, a fixed Ethernet address unless one was given above, and the
+# optional hostname and authorized_keys files from the FAT partition.
 rm -f "$root"/etc/ssh/ssh_host_*
-cat > "$root/usr/local/sbin/de25-firstboot" <<'EOF'
-#!/bin/sh
-set -u
-ssh-keygen -A
-rootdev=$(findmnt -n -o SOURCE /)            # /dev/mmcblk0p2
-disk=/dev/$(lsblk -n -o PKNAME "$rootdev")    # /dev/mmcblk0
-growpart "$disk" 2 || true
-resize2fs "$rootdev" || true
-systemctl disable de25-firstboot.service
-EOF
-chmod 755 "$root/usr/local/sbin/de25-firstboot"
-cat > "$root/etc/systemd/system/de25-firstboot.service" <<EOF
-[Unit]
-Description=DE25-Nano first boot: ssh host keys, grow the root filesystem
-Before=ssh.service
-ConditionPathExists=/usr/local/sbin/de25-firstboot
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/de25-firstboot
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
+install -m 755 /sd/files/de25-firstboot "$root/usr/local/sbin/de25-firstboot"
+install -m 644 /sd/files/de25-firstboot.service "$root/etc/systemd/system/de25-firstboot.service"
 chroot "$root" systemctl enable de25-firstboot.service >/dev/null
 : > "$root/etc/machine-id"
 rm -rf "$root"/var/lib/apt/lists/* "$root"/var/cache/apt/archives/*.deb
@@ -169,6 +138,8 @@ mcopy -i "$work/fat.img" /in/u-boot.itb ::u-boot.itb
 mkimage -A arm64 -T script -C none -n "DE25-Nano boot script" -d /sd/boot.cmd "$work/boot.scr" >/dev/null
 mcopy -i "$work/fat.img" "$work/boot.scr" ::boot.scr
 [ "$FABRIC" = no ] || mcopy -i "$work/fat.img" /in/fpga.rbf ::fpga.rbf
+sed -e "s/@USER@/$USER_/g" -e "s/@HOSTNAME@/$HOSTNAME_/g" /sd/files/firmware-README.txt > "$work/README.txt"
+mcopy -i "$work/fat.img" "$work/README.txt" ::README.txt
 mke2fs -q -t ext4 -L rootfs -d "$root" "$work/root.img" "${root_mb}M"
 truncate -s "${IMAGE_MB}M" "$img"
 # Both partitions are marked bootable: U-Boot scans only those, partition 1 for the boot script,

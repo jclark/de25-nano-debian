@@ -1,0 +1,26 @@
+## /etc/default/u-boot - settings for u-boot-update(8) on the DE25-Nano
+##
+## u-boot-update writes the boot menu, /boot/extlinux/extlinux.conf, with an entry for every
+## installed kernel. It runs whenever a kernel package is installed or removed. After changing
+## this file, or the overlays in /boot/dtbo, run:  sudo u-boot-update
+
+# One entry for each kernel, no "rescue target" entries.
+U_BOOT_ALTERNATIVES="default"
+
+# Boot the newest kernel after 3 seconds (the unit is a tenth of a second).
+U_BOOT_PROMPT="0"
+U_BOOT_TIMEOUT="30"
+
+# The kernel command line, after root=, which is taken from /etc/fstab.
+# console=tty0 is the HDMI console when the FPGA design is loaded; the last console named,
+# the serial one, is where /dev/console goes.
+U_BOOT_PARAMETERS="rw rootwait console=tty0 console=ttyS0,115200 earlycon"
+
+# Device tree: each kernel package brings its own, in /usr/lib/linux-image-<release>/, and the
+# menu names that directory. U-Boot loads from it the file named by its fdtfile variable,
+# which /boot/firmware/boot.scr sets.
+#U_BOOT_FDT_DIR="/usr/lib/linux-image-"
+
+# Overlays: every *.dtbo in /boot/dtbo is applied to the device tree. The overlay for the FPGA
+# design, fpga.dtbo, goes there together with fpga.rbf in /boot/firmware.
+#U_BOOT_FDT_OVERLAYS_DIR="/boot/dtbo/"

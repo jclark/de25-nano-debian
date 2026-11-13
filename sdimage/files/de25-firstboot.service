@@ -1,0 +1,14 @@
+[Unit]
+Description=DE25-Nano first boot: ssh host keys, root file system size, Ethernet address, files from the FAT partition
+ConditionPathExists=/usr/local/sbin/de25-firstboot
+RequiresMountsFor=/boot/firmware
+Wants=network-pre.target
+Before=network-pre.target systemd-networkd.service ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/de25-firstboot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,66 @@
+#!/bin/sh
+# DE25-Nano: set-up done once, at the first boot of a card. Run by de25-firstboot.service
+# before the network is brought up.
+set -u
+fat=/boot/firmware
+user=$(getent passwd 1000 | cut -d: -f1)
+home=$(getent passwd 1000 | cut -d: -f6)
+
+# New ssh host keys: the image has none.
+ssh-keygen -A
+
+# Grow partition 2 and its file system to the size of the card.
+rootdev=$(findmnt -n -o SOURCE /)            # /dev/mmcblk0p2
+disk=/dev/$(lsblk -n -o PKNAME "$rootdev")    # /dev/mmcblk0
+growpart "$disk" 2 || true
+resize2fs "$rootdev" || true
+
+# A fixed Ethernet address. The board stores none, and U-Boot invents a new one at every
+# boot. Unless the image was built with one, make one up now and keep it: a random address
+# with the "locally administered" bit set.
+link=/etc/systemd/network/10-emac0.link
+if [ ! -e "$link" ]; then
+    mac=02:$(od -An -N5 -tx1 /dev/urandom | sed 's/^ *//; s/ /:/g')
+    # A link file that matches replaces Debian's default one, so the default naming policy is
+    # restated here: the interface keeps its usual Debian name, end0.
+    printf '%s\n' '[Match]' 'Path=platform-10810000.ethernet' '' '[Link]' "MACAddress=$mac" \
+        'NamePolicy=keep kernel database onboard slot path' \
+        'AlternativeNamesPolicy=database onboard slot path mac' > "$link"
+    # The link file takes effect when the interface appears, which has already happened in
+    # this boot: set the address directly this once.
+    for n in /sys/devices/platform/soc@0/10810000.ethernet/net/*; do
+        [ -e "$n" ] && ip link set dev "${n##*/}" address "$mac"
+    done
+    echo "de25-firstboot: Ethernet address $mac"
+fi
+
+# Optional files that the user put on the FAT partition before the first boot.
+
+# hostname: one line, the host name.
+if [ -s "$fat/hostname" ]; then
+    h=$(tr -d ' \t\r\n' < "$fat/hostname" | cut -c1-63)
+    case $h in
+        ''|-*|*[!A-Za-z0-9-]*)
+            echo "de25-firstboot: $fat/hostname is not a valid host name, ignored" ;;
+        *)
+            echo "$h" > /etc/hostname
+            sed -i "s/^127\.0\.1\.1[[:space:]].*/127.0.1.1\t$h/" /etc/hosts
+            hostname "$h"
+            echo "de25-firstboot: host name $h" ;;
+    esac
+fi
+
+# authorized_keys: ssh public keys for the user. With keys, ssh accepts keys only, and the
+# password need not be changed at the first login (that would block logging in with a key).
+if [ -s "$fat/authorized_keys" ] && [ -n "$user" ]; then
+    install -d -m 700 -o "$user" -g "$user" "$home/.ssh"
+    tr -d '\r' < "$fat/authorized_keys" > "$home/.ssh/authorized_keys"
+    chown "$user:$user" "$home/.ssh/authorized_keys"
+    chmod 600 "$home/.ssh/authorized_keys"
+    mkdir -p /etc/ssh/sshd_config.d
+    echo "PasswordAuthentication no" > /etc/ssh/sshd_config.d/10-keys-only.conf
+    chage -d 1 "$user"
+    echo "de25-firstboot: ssh keys installed for $user; ssh accepts keys only"
+fi
+
+systemctl disable de25-firstboot.service

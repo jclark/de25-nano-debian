@@ -10,7 +10,7 @@
 # AVI infoframe from it, and that it only enables the output when a monitor is connected.
 #
 # Usage: de25-hdmi-init [i2c-bus] [dvi]
-#   i2c-bus  default 0: HPS I2C0 through the fabric
+#   i2c-bus  default 0: the SoC's I2C0, through the FPGA
 #   dvi      send DVI, not HDMI (the driver chooses from the EDID; HDMI is right for a monitor
 #            or TV with an HDMI socket)
 # Needs i2c-tools and root.
@@ -45,7 +45,7 @@ w 0x44 0x00
 # adv7511_set_link_config(): input ID 0 (24-bit RGB 4:4:4, separate syncs), 8 bits per colour,
 # style 1, left justified, no sync pulse adjustment, clock delay -800 ps (0xBA = 0x20; in the
 # device tree for the kernel driver: adi,clock-delay = <-800>).
-# Measured on one board (2026-11-13, tools/hdmi-test.py sweep, with a fine test picture):
+# Measured on one board (2026-11-13, tools/hdmi-test.py sweep, with a fine test pattern):
 # delay +1200 ps: blue sampled from the neighbouring pixel; +800 ps: occasional errors; 0 ps (the
 # driver's default) to -1200 ps: clean. -800 ps is about 1.6 ns from where errors begin.
 m 0x15 0x0f 0x00
@@ -69,8 +69,8 @@ m 0xfb 0x06 0x00
 m 0x17 0x60 0x00
 
 # adv7511_bridge_hdmi_write_avi_infoframe(): the driver writes a whole infoframe built from the
-# mode and the EDID. Here: RGB, active format valid (0x55 = 0x10); 16:9 picture, active format
-# same as picture (0x56 = 0x28); full-range RGB (0x57 = 0x08), because the frame buffer is full
+# mode and the EDID. Here: RGB, active format valid (0x55 = 0x10); picture aspect ratio 16:9,
+# active format the same as the picture aspect ratio (0x56 = 0x28); full-range RGB (0x57 = 0x08), because the frame buffer is full
 # range and a TV otherwise assumes limited range for 1080p. The video code and checksum are
 # left to the chip, which detects the format from its inputs.
 m 0x4a 0x40 0x40
