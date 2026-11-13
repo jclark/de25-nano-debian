@@ -17,7 +17,7 @@
 /dts-v1/;
 /plugin/;
 
-/* UART0 on header JP1: pin 33 RX, pin 34 TX. */
+/* UART0 on header JP1: pin 8 TX, pin 10 RX. */
 &uart0 {
 	status = "okay";
 };
@@ -28,8 +28,8 @@
 };
 
 /*
- * EMAC0's auxiliary snapshot trigger 1 comes from the FPGA: JP1 pin 31
- * (PPS in). The PPS output is on pin 32.
+ * EMAC0's auxiliary snapshot trigger 1 comes from the FPGA: JP1 pin 9
+ * (PPS in). The PPS output is on pin 7.
  */
 &gmac0 {
 	altr,f2h-ptp-aux-trig;
@@ -57,12 +57,12 @@
 	};
 };
 
-/* Spare I2C bus (I2C_EMAC0) on JP1: pin 35 SCL, pin 36 SDA. */
+/* Spare I2C bus (I2C_EMAC0) on JP1: pin 3 SDA, pin 5 SCL. */
 &i2c2 {
 	status = "okay";
 };
 
-/* SPI master 0 on JP1 pins 37 to 40. */
+/* SPI master 0 on JP1: pin 19 MOSI, 21 MISO, 23 SCLK, 24 SS0. */
 &spi0 {
 	status = "okay";
 };

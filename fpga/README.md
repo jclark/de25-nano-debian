@@ -27,16 +27,18 @@ What the fabric gives Linux:
 
 | On the board | In Linux |
 |---|---|
-| JP1 pin 31, input, 3.3 V | PTP clock external timestamp, channel 1 (`extts`): a GNSS receiver's pulse per second |
-| JP1 pin 32, output | PTP clock periodic output, channel 1 (`perout`) |
-| JP1 pin 33 RX, pin 34 TX | UART0, `/dev/ttyS1` |
-| JP1 pin 35 SCL, pin 36 SDA | a spare I2C bus |
-| JP1 pins 37 to 40: SCLK, MOSI, MISO, SS0 | SPI master 0 |
+| JP1 pin 9, input | PTP clock external timestamp, channel 1 (`extts`): a GNSS receiver's pulse per second |
+| JP1 pin 7, output | PTP clock periodic output, channel 1 (`perout`) |
+| JP1 pin 8 TX, pin 10 RX | UART0, `/dev/ttyS1` |
+| JP1 pin 3 SDA, pin 5 SCL | a spare I2C bus |
+| JP1 pins 19 MOSI, 21 MISO, 23 SCLK, 24 SS0 | SPI master 0 |
 | the board's I2C bus with the fan controller and the HDMI transmitter | I2C bus 0: the fan controller gets its kernel driver (`amc6821`); the HDMI transmitter is set up by a script |
 | HDMI socket | a 1920x1080, 60 Hz picture of the memory at 0xBF000000, used as a frame buffer |
 | user LEDs 0 to 2 (they light on a low level) | diagnostics: 0 pixel clock PLL locked, 1 PLL lost lock since load, 2 the video block ran out of data in the last half second. Healthy: LED 0 off, 1 and 2 on. |
 
-JP1 pin 29 is 3.3 V and pin 30 is ground.
+The header signals are 3.3 V logic. JP1 pin 11 is 5 V and pin 12 is ground; pin 29 is 3.3 V and
+pin 30 is ground. The top-level [README.md](../README.md) has the full pin table, where JP1 and
+its pin 1 are, and what is and is not like a Raspberry Pi's header.
 
 ## What it needs first
 
