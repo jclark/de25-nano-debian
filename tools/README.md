@@ -4,7 +4,7 @@ Copy what you need to the board. All of these are for stage 2.
 
 ## The PTP clock's trigger input and pulse output
 
-With a jumper from JP1 pin 32 (pulse output) to pin 31 (trigger input), the clock timestamps
+With a jumper from JP1 pin 7 (pulse output) to pin 9 (trigger input), the clock timestamps
 its own pulses. `testptp` is the kernel's own test program,
 `tools/testing/selftests/ptp/testptp.c` in the kernel source; compile it for arm64, on the
 board with `gcc` or with the cross-compiler, against the headers of this kernel
@@ -18,12 +18,9 @@ sudo ./testptp -d /dev/ptp0 -i 1 -e 5              # five timestamps from input 
 A good result is five events on index 1, one second apart, each a few nanoseconds after the
 second (`...000000015`).
 
-For a GNSS receiver: its pulse per second on pin 31 (3.3 V logic), its serial lines on pins
-33 and 34, 3.3 V on pin 29, ground on pin 30.
-
 ## UART0
 
-With a jumper from JP1 pin 34 (TX) to pin 33 (RX):
+With a jumper from JP1 pin 8 (TX) to pin 10 (RX):
 
 ```
 python3 uart-loop.py /dev/ttyS1
@@ -57,4 +54,4 @@ cat /sys/class/hwmon/hwmonN/fan1_input       # rpm
 cat /sys/class/hwmon/hwmonN/temp2_input      # the FPGA's temperature, millidegrees
 ```
 
-The curve is set by `/usr/local/sbin/de25-fan-curve`.
+The curve's settings are in `/etc/default/de25-fan`.
