@@ -9,9 +9,11 @@
 # (fpga/quartus/Dockerfile). The first use pulls 17.5 GiB.
 #
 # The whole repository is visible in the container at the same path. So is the current
-# directory when it is somewhere else (a clone of the design, for apply.sh). Quartus keeps its licence in work/quartus-home: it fetches a free licence for this
-# FPGA family over HTTPS the first time the fitter runs. The licence is tied to a network
-# card's address, hence --net=host.
+# directory when it is somewhere else (a clone of the design, for apply.sh).
+#
+# Quartus keeps its licence in work/quartus-home: it fetches a free licence for this FPGA
+# family over HTTPS the first time the fitter runs. The licence is tied to a network card's
+# address, hence --net=host.
 #
 # --usb runs as root with --privileged and /dev/bus/usb, which the USB programming cable needs;
 # files it writes belong to root.
