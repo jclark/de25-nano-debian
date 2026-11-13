@@ -1,0 +1,14 @@
+# Fan curve for the DE25-Nano, read by /usr/local/sbin/de25-fan-curve when the fan controller
+# (AMC6821) appears. The controller holds the curve and follows the FPGA's temperature itself.
+# After a change, reboot, or apply it at once with:
+#   sudo udevadm trigger --action=add --subsystem-match=hwmon
+
+# Fan drive at and below FAN_MIN_TEMP, 0 to 255. 90 is about 5,200 rpm.
+FAN_MIN_PWM=90
+
+# FPGA temperature, in degrees C, up to which the fan stays at FAN_MIN_PWM.
+FAN_MIN_TEMP=64
+
+# FPGA temperature, in degrees C, at which the fan reaches full speed. The controller supports
+# only certain slopes, so it may settle on a nearby value (76 is read back as 74).
+FAN_FULL_TEMP=76

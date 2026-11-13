@@ -69,6 +69,7 @@ EOF
 # the fan controller, and the HDMI unit has a condition on the I2C bus that the overlay enables.
 install -m 644 /sd/files/60-de25-fan.rules "$root/etc/udev/rules.d/60-de25-fan.rules"
 install -m 755 /sd/files/de25-fan-curve "$root/usr/local/sbin/de25-fan-curve"
+install -m 644 /sd/files/de25-fan.default "$root/etc/default/de25-fan"
 install -m 755 /sd/files/de25-hdmi-init "$root/usr/local/sbin/de25-hdmi-init"
 install -m 644 /sd/files/de25-hdmi-init.service "$root/etc/systemd/system/de25-hdmi-init.service"
 chroot "$root" systemctl enable de25-hdmi-init.service >/dev/null
