@@ -3,3 +3,7 @@
 # Device tree overlays: the "fdt apply" command and the "fdtoverlays" line of extlinux.conf,
 # for the overlay that goes with the FPGA design loaded from the SD card
 CONFIG_OF_LIBFDT_OVERLAY=y
+# ft_board_setup(), added by qspi-flash.patch: U-Boot enables the QSPI flash controller in
+# Linux's device tree and sets its clock rate, when the board's flash contents give the SoC
+# the flash
+CONFIG_OF_BOARD_SETUP=y

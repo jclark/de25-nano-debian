@@ -31,6 +31,10 @@ fetch() {   # fetch DIR REPO BRANCH COMMIT
 fetch arm-trusted-firmware "$TFA_REPO" "$TFA_BRANCH" "$TFA_COMMIT"
 fetch u-boot-socfpga "$UBOOT_REPO" "$UBOOT_BRANCH" "$UBOOT_COMMIT"
 
+# The change to Terasic's U-Boot source (README.md, Source), applied to clean files each time.
+git -C "$work/u-boot-socfpga" checkout -q -- .
+git -C "$work/u-boot-socfpga" apply "$top/u-boot/qspi-flash.patch"
+
 docker build -q -t de25-nano-uboot "$top/u-boot" >/dev/null
 docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     -v "$top":"$top" -w "$work" de25-nano-uboot sh -euc '
@@ -45,6 +49,8 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     make -j"$jobs"
 '
 cp "$work/u-boot-socfpga/u-boot.itb" "$work/u-boot-socfpga/spl/u-boot-spl-dtb.hex" "$out/"
-grep -q '^CONFIG_OF_LIBFDT_OVERLAY=y' "$work/u-boot-socfpga/.config" || {
-    echo "u-boot/build.sh: the config fragment did not take effect" >&2; exit 1; }
+for opt in CONFIG_OF_LIBFDT_OVERLAY CONFIG_OF_BOARD_SETUP; do
+    grep -q "^$opt=y" "$work/u-boot-socfpga/.config" || {
+        echo "u-boot/build.sh: the config fragment did not take effect ($opt)" >&2; exit 1; }
+done
 ls -l "$out"

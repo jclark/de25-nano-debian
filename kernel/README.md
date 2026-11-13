@@ -52,16 +52,21 @@ Debian or Ubuntu machine needs to do the build without Docker:
 ## Source
 
 `https://github.com/jclark/linux`, branch `de25-nano-mainline/v7.4`: Linux 7.4-rc2 plus a
-short stack of patches that are on their way upstream:
+short stack of patches.
+
+Kept on this branch, not for submission upstream:
 
 - the board: a binding entry, the SD host node for Agilex 5, and the DE25-Nano device tree;
+- one commit that builds the board's device tree with symbols.
+
+Planned for submission upstream:
+
 - Ethernet (stmmac, the XGMAC core in this chip): external timestamps (`extts`) made to work,
   fixes around them, and the split header feature switched off on Agilex 5, where it
   gave corrupted received data on this board;
 - the route for the PTP trigger from the FPGA (`altr,f2h-ptp-aux-trig`);
 - a fix that lets programs request external timestamps with strict flag checking
-  (`PTP_EXTTS_REQUEST2`), which SatPulse needs;
-- one commit that builds the board's device tree with symbols.
+  (`PTP_EXTTS_REQUEST2`), which SatPulse needs.
 
 The branch only moves forward: changes to those patches, and newer 7.4 release candidates, are
 added on top of it, and it is never rewritten. When the base moves to 7.5, a new branch

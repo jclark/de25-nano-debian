@@ -4,7 +4,8 @@ Needs: the image from Task I ([sdimage/README.md](sdimage/README.md)), a microSD
 more, the board's USB-C cable.
 
 The same image is for a board with the factory flash contents (stage 1) and for one whose
-flash has been written ([install-flash.md](install-flash.md), stage 2).
+flash has been written ([install-flash.md](install-flash.md), stage 2). For stage 2 the FPGA
+design is then enabled on the board (step 6 of that page).
 
 ## Write the card
 
@@ -46,15 +47,14 @@ Put the card in, connect Ethernet, power the board. On the console, in this orde
 
 1. `U-Boot SPL 2025.01-...`: the first-stage loader from the flash. It sets up the memory and
    loads `u-boot.itb` from the card.
-2. `U-Boot 2025.01-gd0f8813fd6bf (<date of your build>)`, then a five second countdown. A key
-   stops it at the prompt `SOCFPGA_AGILEX5 #`; `boot` carries on.
-3. `Found U-Boot script /boot.scr`. In stage 2: `FPGA reconfiguration OK!`. In stage 1 the
-   board refuses the FPGA design, and the script says
-   `fpga.rbf was not accepted: booting without the FPGA design`. Then
-   `SCRIPT FAILED: continuing...`, which is what U-Boot prints when any script returns, not a
-   fault.
-4. `Found /boot/extlinux/extlinux.conf`, then the kernel and the device tree are fetched, and
-   in stage 2 the overlay. `Starting kernel ...`.
+2. `U-Boot 2025.01-gd0f8813fd6bf-dirty (<date of your build>)`, then a five second
+   countdown. A key stops it at the prompt `SOCFPGA_AGILEX5 #`; `boot` carries on.
+3. `Found U-Boot script /boot.scr`, then
+   `No fpga.rbf on the card: booting without the FPGA design`; or, once the FPGA design has
+   been enabled in stage 2, `FPGA reconfiguration OK!`. Then `SCRIPT FAILED: continuing...`,
+   which is what U-Boot prints when any script returns, not a fault.
+4. `Found /boot/extlinux/extlinux.conf`, then the kernel and the device tree are fetched,
+   and, with the FPGA design enabled, the overlay. `Starting kernel ...`.
 5. Debian's login prompt. The first boot takes a little longer: it makes the ssh host keys,
    grows the root partition to the size of the card, and makes up the board's Ethernet
    address.
@@ -75,9 +75,10 @@ sudo ethtool -T end0            # hardware timestamping
 systemctl --failed              # nothing
 ```
 
-and for stage 2:
+and for stage 2, with the FPGA design enabled:
 
 ```
+cat /proc/mtd                   # mtd0: the board's flash
 ls /dev/ttyS1                   # UART0 on the header
 sudo dmesg | grep simple-framebuffer
 cat /sys/class/hwmon/hwmon*/name | grep amc6821    # the fan controller

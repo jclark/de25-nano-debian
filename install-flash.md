@@ -75,29 +75,44 @@ powered), wait a few seconds, plug both in again.
 The board boots from the card as before: the same U-Boot works with the factory first stage
 and with this one.
 
-## 6. The card
+## 6. Enable the FPGA design
 
-A card made from `de25-nano.img` needs no change. From this boot on U-Boot prints
-`FPGA reconfiguration OK!`, applies the device tree overlay, and the header signals, the fan
-control and HDMI are there.
+The card carries the FPGA design, but the design is not loaded until it has been enabled. On
+the board:
 
-A card made from `de25-nano-nofpga.img` needs the FPGA design and its overlay added:
-"Changing the card later" in [sdimage/README.md](sdimage/README.md).
+```
+sudo de25-fpga enable
+sudo reboot
+```
+
+From this boot on U-Boot prints `FPGA reconfiguration OK!`, applies the device tree overlay,
+and the header signals, the fan control and HDMI are there.
+
+A card made from `de25-nano-nofpga.img` has no FPGA design to enable: "Changing the card
+later" in [sdimage/README.md](sdimage/README.md).
 
 ## Going back to the factory state
 
-Write the read-back from step 2 the same way, then power cycle:
+On the board, stop the FPGA design being loaded, and shut Linux down:
+
+```
+sudo de25-fpga disable
+sudo systemctl halt
+```
+
+Write the read-back from step 2 in the same way as step 3 (with step 4 if it fails at once),
+then power cycle as in step 5:
 
 ```
 fpga/q --usb quartus_pgm -m jtag -c 1 -o "IPV;out/fpga/readback.jic"
 ```
 
-This write has not been tried; the read-back has only been verified against the flash (the
-`IV` command above). The card needs no change: U-Boot's attempt to load `fpga.rbf` is then
-refused, and the boot carries on without the FPGA design.
+The board then boots the same card in stage 1.
 
 ## What has been done on the board this was developed on
 
 The flash was read back, then written several times in this way with first-stage images made
-by the same commands, and the board has run from the last of them since. The exact file your
-build produces differs from the one in that board's flash at least in the loader's build date.
+by the same commands. The factory contents were written back once, from Linux, not with the
+command above, and the card booted and restarted on them. The exact file your build
+produces differs from the images that board has run: in the loader's build date, and in that
+the loader is now built with `u-boot/qspi-flash.patch`.

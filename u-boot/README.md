@@ -4,7 +4,7 @@
 flowchart LR
   s1(["terasic/arm-trusted-firmware"]) --> a["Build TF-A"] --> b[/"bl31.bin"/] --> c["Build U-Boot"]
   s2(["terasic/u-boot-socfpga"]) --> c
-  s3(["de25-nano.fragment"]) --> c
+  s3(["de25-nano.fragment,<br/>qspi-flash.patch"]) --> c
   c --> o1[/"u-boot.itb"/]
   c --> o2[/"u-boot-spl-dtb.hex"/]
 ```
@@ -34,11 +34,25 @@ its own toolchain name and the loader came out a different size.
 - TF-A: `https://github.com/terasic/arm-trusted-firmware`, branch `de25-nano-v2.12.0`, commit
   `580dcb5c4e10`, unchanged.
 - U-Boot: `https://github.com/terasic/u-boot-socfpga`, branch `de25-nano-v2025.01`, commit
-  `d0f8813fd6bf`, unchanged. It is U-Boot 2025.01 with Altera's and Terasic's additions.
+  `d0f8813fd6bf`. It is U-Boot 2025.01 with Altera's and Terasic's additions.
 - Added here: `de25-nano.fragment`, merged into Terasic's `socfpga_agilex5_de25_nano_defconfig`. It
   sets one option, `CONFIG_OF_LIBFDT_OVERLAY=y`, which Terasic's configuration leaves off.
   Without it U-Boot has neither the `fdt apply` command nor the `fdtoverlays` line of the boot
   menu, and the device tree overlay for the FPGA design cannot be applied.
+- Added here: `qspi-flash.patch`, applied to Terasic's U-Boot source, and
+  `CONFIG_OF_BOARD_SETUP=y` in the fragment. They give Linux the board's QSPI flash as
+  `/dev/mtd0` in stage 2:
+  - The flash belongs to the chip's Secure Device Manager (SDM), which hands it to the SoC
+    only if the FPGA design in the flash says so. The first-stage loader asks. The stage 2
+    flash contents hand it over; the factory contents do not.
+  - Terasic's device tree for U-Boot turns the flash controller off; the patch turns it on,
+    and makes the controller's driver refuse to start when the flash was not handed over,
+    because touching the controller then stops U-Boot.
+  - The patch adds `ft_board_setup()`, which U-Boot calls on Linux's device tree before it
+    starts the kernel. If the flash answers, it enables the flash controller there and sets
+    the controller's clock to the rate the SDM reported (500 MHz on this board). Altera's
+    U-Boot does the same with a script, `linux_qspi_enable`, which cannot be used here
+    because the boot menu loads the device tree.
 
 Why Terasic's U-Boot and not mainline U-Boot: the first-stage loader of a factory board is
 built from this source at this commit (the loader built here is the same as Terasic's prebuilt
@@ -58,9 +72,9 @@ directory. A few minutes.
 Check the result:
 
 - `out/u-boot/u-boot.itb` is about 1 MB and `out/u-boot/u-boot-spl-dtb.hex` about 0.7 MB.
-- The script itself checks that the option from the fragment is in the final configuration.
+- The script itself checks that the options from the fragment are in the final configuration.
 - On the board, U-Boot's first line on the serial console shows the build date of this build:
-  `U-Boot 2025.01-gd0f8813fd6bf (<date>)`.
+  `U-Boot 2025.01-gd0f8813fd6bf-dirty (<date>)`; "dirty" because of the patch.
 
 ## How U-Boot boots the card
 
@@ -70,10 +84,10 @@ short:
 
 1. U-Boot's stock boot command scans the partitions marked bootable.
 2. On partition 1 (FAT) it finds the script `boot.scr` and runs it. The script names the
-   device tree file, gives the address and size limit for unpacking a compressed kernel, and
-   loads the FPGA design `fpga.rbf`; if that succeeds it also sets the address overlays are
-   loaded to. Then it returns; U-Boot prints `SCRIPT FAILED: continuing...`, which is what it
-   prints whenever a script returns.
+   device tree file, gives the address and size limit for unpacking a compressed kernel, and,
+   if `fpga.rbf` is on the partition, loads the FPGA design; if that succeeds it also sets the
+   address overlays are loaded to. Then it returns; U-Boot prints
+   `SCRIPT FAILED: continuing...`, which is what it prints whenever a script returns.
 3. On partition 2 (ext4) it finds the boot menu `/boot/extlinux/extlinux.conf`, which names
    the kernel, the directory with that kernel's device tree, and the overlay. U-Boot applies
    the overlay only if the script set its load address, that is, only if the FPGA design

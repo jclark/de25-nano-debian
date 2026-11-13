@@ -1,0 +1,56 @@
+#!/bin/sh
+# de25-fpga: turn the loading of the FPGA design at boot on or off.
+#
+#   de25-fpga enable    load the design from the next boot on
+#   de25-fpga disable   stop loading it
+#   de25-fpga status    say which it is
+#
+# The design, fpga.rbf, and its device tree overlay, fpga.dtbo, are kept in /usr/lib/de25-nano.
+# U-Boot loads the design only if fpga.rbf is on the FAT partition (/boot/firmware), and the
+# boot menu names the overlay only if fpga.dtbo is in /boot/dtbo. "enable" puts both there;
+# "disable" removes both.
+#
+# Enable it only on a board whose flash holds the first stage built with this design (stage
+# 2). A board with the factory flash contents refuses the design and then hangs at its next
+# restart until it is power cycled.
+set -eu
+lib=/usr/lib/de25-nano
+fat=/boot/firmware
+dtbo=/boot/dtbo
+fail() { echo "de25-fpga: $*" >&2; exit 1; }
+
+case "${1:-}" in
+enable)
+    [ -f "$lib/fpga.rbf" ] && [ -f "$lib/fpga.dtbo" ] || fail "no fpga.rbf and fpga.dtbo in $lib"
+    mountpoint -q "$fat" || fail "$fat is not mounted"
+    # Linux has the flash only with the stage 2 flash contents (u-boot/README.md).
+    if [ ! -e /dev/mtd0 ] && [ "${2:-}" != --force ]; then
+        fail "this board's flash does not hold the stage 2 first stage (no /dev/mtd0).
+It would refuse the design and then hang at its next restart. Not enabled."
+    fi
+    cp "$lib/fpga.dtbo" "$dtbo/fpga.dtbo"
+    cp "$lib/fpga.rbf" "$fat/fpga.rbf"
+    u-boot-update >/dev/null
+    sync
+    echo "The FPGA design will be loaded from the next boot on."
+    ;;
+disable)
+    rm -f "$fat/fpga.rbf" "$dtbo/fpga.dtbo"
+    u-boot-update >/dev/null
+    sync
+    echo "The FPGA design will not be loaded from the next boot on."
+    ;;
+status)
+    if [ -f "$fat/fpga.rbf" ] && [ -f "$dtbo/fpga.dtbo" ]; then
+        echo enabled
+    elif [ -f "$fat/fpga.rbf" ] || [ -f "$dtbo/fpga.dtbo" ]; then
+        echo "half enabled: run de25-fpga enable or de25-fpga disable"
+    else
+        echo disabled
+    fi
+    ;;
+*)
+    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+    ;;
+esac

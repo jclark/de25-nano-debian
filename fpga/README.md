@@ -16,8 +16,8 @@ flowchart LR
 
 | File | What it is | Where it goes | Changes when |
 |---|---|---|---|
-| `out/fpga/fpga.rbf` | The fabric: the logic in the FPGA | The FAT partition of the SD card, by Task I. U-Boot loads it at every boot. | the logic changes |
-| `out/fpga/fpga.dtbo` | The device tree overlay: what Linux must be told when the fabric is loaded | `/boot/dtbo/` on the card, by Task I. Goes with `fpga.rbf`: both or neither. | the fabric's interface to Linux changes |
+| `out/fpga/fpga.rbf` | The fabric: the logic in the FPGA | `/usr/lib/de25-nano/` on the card, by Task I. `de25-fpga enable` copies it to the FAT partition, and U-Boot then loads it at every boot. | the logic changes |
+| `out/fpga/fpga.dtbo` | The device tree overlay: what Linux must be told when the fabric is loaded | `/usr/lib/de25-nano/` on the card, by Task I. `de25-fpga enable` copies it to `/boot/dtbo/`. Goes with `fpga.rbf`: both or neither. | the fabric's interface to Linux changes |
 | `out/fpga/de25-nano.hps.jic` | The first-stage image: the SoC's configuration (its pins and memory, and which of its peripherals are routed to the FPGA) and the first-stage loader | The board's QSPI flash, written once over JTAG ([install-flash.md](../install-flash.md)) | the SoC's configuration or the loader changes; not when only the logic changes |
 
 `fpga.rbf` and the `.jic` belong together: a fabric is refused by a board whose flash holds a
@@ -133,8 +133,9 @@ Check the result:
 
 - `out/fpga/fpga.rbf` is about 1.9 MB, `out/fpga/de25-nano.hps.jic` about 16.8 MB.
 - The compile's log ends its timing analysis with `Timing requirements were met`.
-- On the board (stage 2): U-Boot prints `FPGA reconfiguration OK!`; Linux has `/dev/ttyS1`, a
-  `simple-framebuffer` line in `dmesg`, and the fan slows from its loud power-on speed.
+- On the board (stage 2, with the FPGA design enabled): U-Boot prints
+  `FPGA reconfiguration OK!`; Linux has `/dev/ttyS1`, a `simple-framebuffer` line in `dmesg`,
+  and the fan slows from its loud power-on speed.
 
 ### The video block's simulation
 

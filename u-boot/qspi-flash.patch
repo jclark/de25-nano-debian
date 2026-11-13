@@ -1,0 +1,71 @@
+diff --git a/arch/arm/dts/socfpga_agilex5_de25_nano-u-boot.dtsi b/arch/arm/dts/socfpga_agilex5_de25_nano-u-boot.dtsi
+index db3872a6..13aa8ccc 100644
+--- a/arch/arm/dts/socfpga_agilex5_de25_nano-u-boot.dtsi
++++ b/arch/arm/dts/socfpga_agilex5_de25_nano-u-boot.dtsi
+@@ -138,7 +138,7 @@
+ };
+ 
+ &qspi {
+-	status = "disabled";
++	status = "okay";
+ };
+ 
+ &nand {
+diff --git a/arch/arm/mach-socfpga/misc_soc64.c b/arch/arm/mach-socfpga/misc_soc64.c
+index 26ba9727..84aa6f69 100644
+--- a/arch/arm/mach-socfpga/misc_soc64.c
++++ b/arch/arm/mach-socfpga/misc_soc64.c
+@@ -201,3 +201,35 @@ int misc_init_r(void)
+ 	return 0;
+ }
+ 
++
++#if IS_ENABLED(CONFIG_OF_BOARD_SETUP) && IS_ENABLED(CONFIG_CADENCE_QSPI)
++#include <fdt_support.h>
++#include <spi_flash.h>
++
++/*
++ * Tell Linux about the QSPI flash, as the linux_qspi_enable script does: if the flash
++ * answers here, enable the controller in Linux's device tree and give its reference
++ * clock the rate the SDM reported when it handed the flash over.
++ */
++int ft_board_setup(void *blob, struct bd_info *bd)
++{
++	u32 hz = cm_get_qspi_controller_clk_hz();
++	struct udevice *flash;
++	int node;
++
++	if (!hz || spi_flash_probe_bus_cs(0, 0, &flash))
++		return 0;
++
++	node = fdt_path_offset(blob, "/clocks/qspi-clk");
++	if (node < 0)
++		return 0;
++	if (fdt_setprop_u32(blob, node, "clock-frequency", hz))
++		return 0;
++
++	node = fdt_node_offset_by_compatible(blob, -1, "cdns,qspi-nor");
++	if (node >= 0)
++		fdt_status_okay(blob, node);
++
++	return 0;
++}
++#endif
+diff --git a/drivers/spi/cadence_qspi.c b/drivers/spi/cadence_qspi.c
+index 58b8368f..aab11c09 100644
+--- a/drivers/spi/cadence_qspi.c
++++ b/drivers/spi/cadence_qspi.c
+@@ -227,6 +227,13 @@ static int cadence_spi_probe(struct udevice *bus)
+ 				  ZYNQMP_PM_CAPABILITY_ACCESS, ZYNQMP_PM_MAX_QOS,
+ 				  ZYNQMP_PM_REQUEST_ACK_NO, NULL);
+ 
++#if defined(CONFIG_TARGET_SOCFPGA_SOC64)
++	/* No clock rate recorded: the SDM has not given the flash to the HPS, and an
++	 * access to the controller would abort. */
++	if (!cm_get_qspi_controller_clk_hz())
++		return -ENODEV;
++#endif
++
+ 	if (priv->ref_clk_hz == 0) {
+ 		ret = clk_get_by_index(bus, 0, &clk);
+ 		if (ret) {

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs inside the build container as root. Called by build-image; see that file for the inputs.
-# Produces /out/$IMAGE_NAME: MBR; partition 1 FAT (/boot/firmware: U-Boot, its boot script and, for
-# stage 2, the FPGA design); partition 2 ext4 (/, with the kernel and the boot menu in /boot).
+# Produces /out/$IMAGE_NAME: MBR; partition 1 FAT (/boot/firmware: U-Boot and its boot script);
+# partition 2 ext4 (/, with the kernel and the boot menu in /boot, and the FPGA design, not
+# yet enabled, in /usr/lib/de25-nano).
 set -eu
 
 : "${SUITE:=trixie}" "${HOSTNAME_:=de25-nano}" "${USER_:=debian}" "${IMAGE_NAME:=de25-nano.img}"
@@ -19,14 +20,14 @@ if [ -f /in/fpga.rbf ] || [ -f /in/fpga.dtbo ]; then
 fi
 PARTUUID_ROOT=$(printf '%08x-02' "$DISK_ID")
 PARTUUID_FAT=$(printf '%08x-01' "$DISK_ID")
-echo "kernel release $KREL, FPGA design on the card: $FABRIC, root PARTUUID=$PARTUUID_ROOT"
+echo "kernel release $KREL, FPGA design in the image: $FABRIC, root PARTUUID=$PARTUUID_ROOT"
 
 work=/work; root=$work/root
 mkdir -p "$work"; find "$work" -mindepth 1 -maxdepth 1 -exec rm -rf {} +; mkdir -p "$root"
 
 # 1. Debian root filesystem from the archive.
 mmdebstrap --architectures=arm64 --variant=important \
-  --include=systemd-sysv,systemd-resolved,systemd-timesyncd,udev,kmod,openssh-server,sudo,ca-certificates,locales,iproute2,iputils-ping,ethtool,pciutils,usbutils,less,vim-tiny,curl,fdisk,cloud-guest-utils,e2fsprogs,dosfstools,dbus,libnss-systemd,i2c-tools,linuxptp,u-boot-menu \
+  --include=systemd-sysv,systemd-resolved,systemd-timesyncd,udev,kmod,openssh-server,sudo,ca-certificates,locales,iproute2,iputils-ping,ethtool,pciutils,usbutils,less,vim-tiny,curl,fdisk,cloud-guest-utils,e2fsprogs,dosfstools,dbus,libnss-systemd,i2c-tools,linuxptp,mtd-utils,u-boot-menu \
   "$SUITE" "$root"
 
 # 2. What the boot menu is written from, before the kernel is installed: installing a kernel
@@ -41,7 +42,14 @@ PARTUUID=$PARTUUID_ROOT  /               ext4  defaults,noatime  0 1
 PARTUUID=$PARTUUID_FAT  /boot/firmware  vfat  defaults,noatime  0 2
 EOF
 install -m 644 /sd/files/u-boot.default "$root/etc/default/u-boot"
-[ "$FABRIC" = no ] || cp /in/fpga.dtbo "$root/boot/dtbo/fpga.dtbo"
+# The FPGA design and its overlay are kept out of the way of the boot: U-Boot must not offer
+# the design to a board with the factory flash contents. "de25-fpga enable" on the board puts
+# them where the boot uses them.
+install -m 755 /sd/files/de25-fpga "$root/usr/local/sbin/de25-fpga"
+if [ "$FABRIC" = yes ]; then
+  install -d "$root/usr/lib/de25-nano"
+  install -m 644 /in/fpga.rbf /in/fpga.dtbo "$root/usr/lib/de25-nano/"
+fi
 
 # 3. The kernel package: kernel, modules, device trees.
 cp "$DEB" "$root/tmp/kernel.deb"
@@ -51,9 +59,6 @@ chroot "$root" u-boot-update
 [ -f "$root/usr/lib/linux-image-$KREL/$DTB" ] || { echo "the kernel package has no $DTB" >&2; exit 1; }
 menu=$root/boot/extlinux/extlinux.conf
 grep -q "fdtdir /usr/lib/linux-image-$KREL/" "$menu" || { echo "the boot menu has no fdtdir line for $KREL" >&2; exit 1; }
-if [ "$FABRIC" = yes ]; then
-  grep -q "fdtoverlays .*fpga.dtbo" "$menu" || { echo "the boot menu does not name the overlay" >&2; exit 1; }
-fi
 cat "$menu"
 
 # 3a. Files for what the FPGA design adds. They do nothing without it: the udev rule waits for
@@ -125,7 +130,7 @@ cat > "$root/etc/de25-nano-image" <<EOF
 built: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 suite: $SUITE
 kernel: $KREL
-FPGA design on the card: $FABRIC
+FPGA design in /usr/lib/de25-nano: $FABRIC
 EOF
 
 # 5. Partition images and the card image. No loop devices: mke2fs -d and mtools.
@@ -135,9 +140,9 @@ rm -f "$work/fat.img" "$work/root.img" "$img"
 mkfs.vfat -C -n FIRMWARE "$work/fat.img" $((FAT_MB * 1024)) >/dev/null
 mcopy -i "$work/fat.img" /in/u-boot.itb ::u-boot.itb
 # The boot script: sets the device tree name for the menu and loads fpga.rbf if it is there.
+# The image does not put it there: "de25-fpga enable" does, on the board.
 mkimage -A arm64 -T script -C none -n "DE25-Nano boot script" -d /sd/boot.cmd "$work/boot.scr" >/dev/null
 mcopy -i "$work/fat.img" "$work/boot.scr" ::boot.scr
-[ "$FABRIC" = no ] || mcopy -i "$work/fat.img" /in/fpga.rbf ::fpga.rbf
 sed -e "s/@USER@/$USER_/g" -e "s/@HOSTNAME@/$HOSTNAME_/g" /sd/files/firmware-README.txt > "$work/README.txt"
 mcopy -i "$work/fat.img" "$work/README.txt" ::README.txt
 mke2fs -q -t ext4 -L rootfs -d "$root" "$work/root.img" "${root_mb}M"

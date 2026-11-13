@@ -1,6 +1,6 @@
 # Tests to run on the board
 
-Copy what you need to the board. All of these are for stage 2.
+Copy what you need to the board. All of these are for stage 2, with the FPGA design enabled.
 
 ## The PTP clock's trigger input and pulse output
 

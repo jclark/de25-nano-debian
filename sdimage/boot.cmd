@@ -21,16 +21,18 @@ setenv fdtoverlay_addr_r
 setenv kernel_comp_addr_r 0x90000000
 setenv kernel_comp_size 0x2000000
 
-# The FPGA design, fpga.rbf, beside this script. It loads only on a board whose flash holds the
-# matching first-stage image. A board with the factory flash contents refuses it: the boot
-# then carries on without the design and without its device tree overlay, which is all a
-# factory board can use.
+# The FPGA design, fpga.rbf, beside this script. It is there only after "de25-fpga enable" has
+# been run on the board, which is done once the flash holds the matching first-stage image.
+# It must not be there on a board with the factory flash contents: such a board refuses it,
+# the boot carries on without the design and its device tree overlay, and the board then hangs
+# at its next restart until it is power cycled.
 if test -e mmc 0:1 fpga.rbf; then
     if load mmc 0:1 ${kernel_addr_r} fpga.rbf && fpga load 0 ${kernel_addr_r} ${filesize}; then
         bridge enable
         setenv fdtoverlay_addr_r 0x87000000
     else
         echo "*** fpga.rbf was not accepted: booting without the FPGA design ***"
+        echo "*** The next restart will hang. Run: sudo de25-fpga disable, then power cycle the board ***"
     fi
 else
     echo "No fpga.rbf on the card: booting without the FPGA design"

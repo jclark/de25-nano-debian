@@ -26,9 +26,9 @@ to be written again.
 | The way back | Put the original card back in | Write back the copy of the flash that you read out first |
 
 Stage 1 changes nothing on the board, so start there. Stage 2 can follow later with the same
-SD card: one card image serves both. It carries the FPGA design; a board with the factory
-flash contents refuses the design and boots without it, and a board whose flash has been
-written loads it.
+SD card: one card image serves both. The image carries the FPGA design, but the design is
+not loaded until it has been enabled on the board, with one command, after the flash has
+been written.
 
 Everything is built from source on one x86-64 Linux machine, in containers.
 
@@ -91,7 +91,8 @@ flowchart LR
 Then two things done by hand:
 
 - [install-card.md](install-card.md): write the card, first boot.
-- [install-flash.md](install-flash.md): stage 2 only. Read the flash back, write it, and how to go back.
+- [install-flash.md](install-flash.md): stage 2 only. Read the flash back, write it, enable
+  the FPGA design, and how to go back.
 
 ## Order of work
 
@@ -125,5 +126,5 @@ All of this was developed on one board in November 2026.
 | Task F built by its script from a clean start | yes |
 | Task I's image built from those and booted, with nothing changed by hand afterwards | yes, on a board in stage 2 |
 | Stage 2 on the board: boots with nothing typed; first-boot set-up, with the two optional files; network; fan; HDMI console | yes |
-| Stage 1: the image on a board with untouched factory flash contents | **not yet** |
-| Writing the read-back file to return to the factory state | **not yet** |
+| Stage 1: the image on a board with untouched factory flash contents | yes |
+| Writing the read-back file to return to the factory state | something slightly different: written from Linux, not over JTAG |

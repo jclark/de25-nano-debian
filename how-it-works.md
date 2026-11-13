@@ -7,11 +7,30 @@ provided through the FPGA.
 
 ### Storage layout
 
-| Storage | Holds | Written |
-|---|---|---|
-| QSPI flash, on the board | The first stage: the configuration of the SoC (the chip's ARM CPU and its peripherals, which Altera calls the HPS) and the first-stage loader. In stage 1 it has the factory contents, which also hold Terasic's FPGA design. In stage 2 it holds `de25-nano.hps.jic`, and no FPGA design. | Once, over JTAG, for stage 2 |
-| SD card, partition 1: FAT, 64 MB, `/boot/firmware` | `u-boot.itb` (U-Boot with TF-A); `boot.scr`, the U-Boot script; `uboot.env`, U-Boot's saved settings, if any have been saved. Stage 2: `fpga.rbf`, the FPGA design. | By the image; later like any file |
-| SD card, partition 2: ext4, the rest of the card, `/` | Debian. The kernel `/boot/vmlinuz-<release>` (gzip-compressed), its modules, and its device tree `/usr/lib/linux-image-<release>/intel/socfpga_agilex5_de25_nano.dtb`, all from the kernel package. The boot menu `/boot/extlinux/extlinux.conf`, written by Debian's `u-boot-update` from `/etc/default/u-boot`. Stage 2: the device tree overlay `/boot/dtbo/fpga.dtbo`. | By the image; later by installing packages, and like any file |
+**QSPI flash, on the board.** The first stage: the configuration of the SoC (the chip's ARM
+CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
+
+- Stage 1: the factory contents, which also hold Terasic's FPGA design.
+- Stage 2: `de25-nano.hps.jic`, and no FPGA design. Written once, over JTAG.
+
+**SD card, partition 1.** FAT, 64 MB, mounted at `/boot/firmware`.
+
+| File | What it is |
+|---|---|
+| `u-boot.itb` | U-Boot with TF-A |
+| `boot.scr` | The U-Boot script |
+| `uboot.env` | U-Boot's saved settings, if any have been saved |
+| `fpga.rbf` | The FPGA design; there only after `de25-fpga enable` (stage 2) |
+
+**SD card, partition 2.** ext4, the rest of the card, mounted at `/`: Debian.
+
+| File | What it is |
+|---|---|
+| `/boot/vmlinuz-<release>` | The kernel, gzip-compressed, from the kernel package |
+| `/usr/lib/linux-image-<release>/intel/socfpga_agilex5_de25_nano.dtb` | The kernel's device tree for the board, from the kernel package |
+| `/boot/extlinux/extlinux.conf` | The boot menu, written by Debian's `u-boot-update` from `/etc/default/u-boot` |
+| `/usr/lib/de25-nano/fpga.rbf`, `fpga.dtbo` | The FPGA design and its device tree overlay, as the image supplies them; the boot does not look here |
+| `/boot/dtbo/fpga.dtbo` | The overlay; there only after `de25-fpga enable` (stage 2) |
 
 ### Boot sequence
 
@@ -22,11 +41,13 @@ provided through the FPGA.
 3. U-Boot scans the bootable partitions. On partition 1 it runs `boot.scr`. The script sets
    three things U-Boot's own configuration for this board lacks: the name of the device tree
    file, the address overlays are loaded to, and the address and size limit for unpacking a
-   compressed kernel. In stage 2 it also loads `fpga.rbf` into the FPGA.
+   compressed kernel. If `fpga.rbf` is on partition 1, it also loads it into the FPGA. The
+   file is put there by `de25-fpga enable`, in stage 2: a board with the factory flash
+   contents does not accept the design.
 4. On partition 2 it reads the boot menu. The menu has an entry for each installed kernel; the
    first, the newest, is the default. From the entry U-Boot loads the kernel, the device tree
-   from that kernel's own directory and, in stage 2, the overlay, which it applies to the
-   device tree.
+   from that kernel's own directory and, if the FPGA design loaded, the overlay, which it
+   applies to the device tree.
 5. The kernel file is gzip-compressed. U-Boot recognises that, unpacks it to the address
    `boot.scr` gave, moves the result back to the address it loads kernels at, and starts it
    with the device tree.

@@ -13,14 +13,14 @@
 #   config           optional, the kernel configuration
 #   authorized_keys  optional, ssh keys for the user
 #   fpga.rbf         optional: the FPGA design (core image), and with it fpga.dtbo, the device
-#   fpga.dtbo          tree overlay built with the design. Both or neither. U-Boot tries to load
-#                      the design at every boot; a board whose flash has the factory contents
-#                      refuses it and boots without it and without the overlay, so an image
-#                      with these files serves a board before and after its flash is written.
+#   fpga.dtbo          tree overlay built with the design. Both or neither. They go into
+#                      /usr/lib/de25-nano and are not used until "de25-fpga enable" is run on
+#                      the board, after its flash has been written: a board with the factory
+#                      flash contents refuses the design and then hangs at its next restart.
 #
 # Without them the image has no FPGA design: console and network only, on any board. The files
 # for the fan and HDMI are installed all the same and stay idle. To add the design later, on
-# the card: copy fpga.rbf to /boot/firmware and fpga.dtbo to /boot/dtbo, and run u-boot-update.
+# the card: copy fpga.rbf and fpga.dtbo to /usr/lib/de25-nano and run "de25-fpga enable".
 #
 # Settings, as environment variables (defaults in mkimage-inner.sh):
 #   SUITE (trixie)  HOSTNAME_ (de25-nano)  USER_ (debian)

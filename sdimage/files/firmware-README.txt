@@ -2,8 +2,9 @@ DE25-Nano SD card, FAT partition (mounted at /boot/firmware in Linux)
 
 u-boot.itb   U-Boot. The loader in the board's flash starts it.
 boot.scr     U-Boot script, run at every boot.
-fpga.rbf     The FPGA design, if the image was built with it. U-Boot loads it at every boot.
-             A board whose flash still has the factory contents refuses it and boots without.
+fpga.rbf     The FPGA design. Not here on a new card: "sudo de25-fpga enable" on the board
+             puts it here, once the board's flash has been written. U-Boot then loads it at
+             every boot.
 
 Before the first boot of this card you may add two files here. They are read once, at the
 first boot:
