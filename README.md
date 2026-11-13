@@ -1,8 +1,13 @@
 # Debian on the Terasic DE25-Nano
 
 Debian 13 on the [Terasic DE25-Nano](https://www.terasic.com.tw/) (Altera Agilex 5 SoC FPGA) with
-a kernel close to mainline, built from source on one x86 machine. The interest that started it
-is precise time: a GNSS receiver's pulse per second timestamped by the Ethernet MAC's PTP clock.
+a kernel close to mainline, built from source on one x86 machine.
+
+The goal is hardware timestamping of a pulse-per-second (PPS) signal by the board's Ethernet
+PTP clock (PHC), so that the DE25-Nano can be a PTP grandmaster with
+[SatPulse](https://satpulse.net/), or an NTP server with chrony using a PHC refclock with
+`extpps`.
+
 The rest is useful without that: mainline Linux, Debian, the fan under control, HDMI.
 
 Everything here is source, or a pointer to source, and the steps from source to a running
@@ -116,7 +121,6 @@ All of this was developed on one board in November 2026.
 | Stage 2 on the board: boot with nothing typed, network, PTP trigger input and pulse output in a loop, UART loop, fan, HDMI console, SPI controller present | yes |
 | Stage 1 image on a board with untouched factory flash contents | **not yet**: an earlier image booted with Terasic's own design in the flash rebuilt from Terasic's sources, which is close to the factory state but not it |
 | Writing the read-back file to return to the factory state | **not yet**: the read-back verifies against the flash, the write back has not been needed |
-| A GNSS receiver on the header | not yet; the loop tests use jumpers |
 
 ## Known limits
 
