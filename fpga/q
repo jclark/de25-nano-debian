@@ -1,0 +1,29 @@
+#!/bin/sh
+# Run a command in the Quartus Pro container, in the current directory.
+#
+# Usage: fpga/q [--usb] COMMAND [ARGS...]
+#   fpga/q quartus_sh --version
+#   fpga/q --usb jtagconfig -n          --usb: with the board's USB-C cable, for JTAG
+#
+# The container image is Altera's Quartus Pro image from Docker Hub plus a few tools
+# (fpga/quartus/Dockerfile). The first use pulls 17.5 GiB.
+#
+# The whole repository is visible in the container at the same path, so run it from inside the
+# repository. Quartus keeps its licence in work/quartus-home: it fetches a free licence for this
+# FPGA family over HTTPS the first time the fitter runs. The licence is tied to a network
+# card's address, hence --net=host.
+#
+# --usb runs as root with --privileged and /dev/bus/usb, which the USB programming cable needs;
+# files it writes belong to root.
+set -eu
+top=$(cd "$(dirname "$0")/.." && pwd)
+qhome=$top/work/quartus-home
+mkdir -p "$qhome"
+docker build -q -t de25-nano-quartus "$top/fpga/quartus" >/dev/null
+if [ "${1:-}" = --usb ]; then
+    shift
+    exec docker run --rm --net=host --privileged -v /dev/bus/usb:/dev/bus/usb \
+        -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" -w "$PWD" de25-nano-quartus "$@"
+fi
+exec docker run --rm --net=host --user "$(id -u):$(id -g)" \
+    -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" -w "$PWD" de25-nano-quartus "$@"

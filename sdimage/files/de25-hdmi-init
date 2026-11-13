@@ -1,0 +1,87 @@
+#!/bin/sh
+# Set up the DE25-Nano's HDMI transmitter (ADV7513) from Linux for the fabric's fixed scan-out:
+# 1920x1080 at 60 Hz, 24-bit RGB, separate syncs. Reports what the chip sees.
+#
+# The register writes follow the kernel's ADV7511 driver (drivers/gpu/drm/bridge/adv7511/
+# adv7511_drv.c, v7.4-rc2) for an ADV7513 described as: adi,input-depth = 8,
+# adi,input-colorspace = "rgb", adi,input-clock = "1x", no adi,clock-delay, no interrupt.
+# The driver function each group comes from is named beside it. Where this differs from the
+# driver it says so: the differences are that the driver reads the monitor's EDID and builds the
+# AVI infoframe from it, and that it only enables the output when a monitor is connected.
+#
+# Usage: de25-hdmi-init [i2c-bus] [dvi]
+#   i2c-bus  default 0: HPS I2C0 through the fabric
+#   dvi      send DVI, not HDMI (the driver chooses from the EDID; HDMI is right for a monitor
+#            or TV with an HDMI socket)
+# Needs i2c-tools and root.
+bus=${1:-0}; a=0x39
+hdmi=0x02; [ "$2" = dvi ] && hdmi=0x00
+w() { i2cset -y "$bus" $a "$1" "$2"; }                 # write a register
+m() { i2cset -y -m "$2" "$bus" $a "$1" "$3"; }         # change only the bits in the mask: reg mask value
+r() { i2cget -y "$bus" $a "$1"; }
+modprobe i2c-dev 2>/dev/null
+echo "chip revision (0x00): $(r 0x00)   monitor sense before (0x42): $(r 0x42)"
+
+# __adv7511_power_on(): ignore the hot-plug pin (HPD source "none"), then leave power-down.
+# The driver powers the chip down at probe and up at enable; most registers are reset by a
+# power-down, so do both. Hot-plug is set to "none" first because the chip refuses to leave
+# power-down while it believes no monitor is connected. The driver puts the source back to the
+# pin once a monitor is detected; here it stays "none", so a cable plugged in later works.
+m 0xd6 0xc0 0xc0
+m 0x41 0x40 0x40
+m 0x41 0x40 0x00
+m 0xd6 0xc0 0xc0
+
+# adv7511_fixed_registers[]: "ADI recommended values for proper operation".
+# (The driver's table also has 0x55 = 0x02; 0x55 is set with the AVI infoframe below.)
+for rv in 98:03 9a:e0 9c:30 9d:61 a2:a4 a3:a4 e0:d0 f9:00; do
+    w 0x${rv%%:*} 0x${rv##*:}
+done
+
+# probe: adv7511_packet_disable(0xffff): no packets until one is set up.
+w 0x40 0x00
+w 0x44 0x00
+
+# adv7511_set_link_config(): input ID 0 (24-bit RGB 4:4:4, separate syncs), 8 bits per colour,
+# style 1, left justified, no sync pulse adjustment, clock delay -800 ps (0xBA = 0x20; in the
+# device tree for the kernel driver: adi,clock-delay = <-800>).
+# Measured on one board (2026-11-13, tools/hdmi-test.py sweep, with a fine test picture):
+# delay +1200 ps: blue sampled from the neighbouring pixel; +800 ps: occasional errors; 0 ps (the
+# driver's default) to -1200 ps: clean. -800 ps is about 1.6 ns from where errors begin.
+m 0x15 0x0f 0x00
+m 0x16 0x7e 0x38
+w 0x48 0x10
+w 0xd0 0x0c
+w 0xba 0x20
+
+# probe: CEC powered down.
+w 0xe2 0x01
+
+# adv7511_set_config_csc(): RGB in, RGB out, colour conversion off; HDMI or DVI.
+m 0x1a 0x20 0x20
+m 0x18 0x80 0x00
+m 0x1a 0x20 0x00
+m 0x16 0x81 0x00
+m 0xaf 0x02 $hdmi
+
+# adv7511_mode_set(): not a low refresh rate; sync polarities passed through.
+m 0xfb 0x06 0x00
+m 0x17 0x60 0x00
+
+# adv7511_bridge_hdmi_write_avi_infoframe(): the driver writes a whole infoframe built from the
+# mode and the EDID. Here: RGB, active format valid (0x55 = 0x10); 16:9 picture, active format
+# same as picture (0x56 = 0x28); full-range RGB (0x57 = 0x08), because the frame buffer is full
+# range and a TV otherwise assumes limited range for 1080p. The video code and checksum are
+# left to the chip, which detects the format from its inputs.
+m 0x4a 0x40 0x40
+w 0x55 0x10
+w 0x56 0x28
+w 0x57 0x08
+m 0x4a 0x40 0x00
+m 0x44 0x10 0x10
+
+sleep 1
+vic=$(r 0x3e); pll=$(r 0x9e); st=$(r 0x42)
+echo "power (0x41): $(r 0x41)   monitor sense (0x42): $st"
+echo "input format detected (0x3e): $vic  -> CEA format $(( (vic >> 2) & 0x3f ))  (16 is 1920x1080 at 60 Hz)"
+echo "pixel clock PLL locked (0x9e bit 4): $(( (pll >> 4) & 1 ))"

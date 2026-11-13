@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR MIT)
+/*
+ * Device tree overlay for the Terasic DE25-Nano with this FPGA design loaded.
+ *
+ * The board's own device tree (socfpga_agilex5_de25_nano.dts in the kernel)
+ * describes what is wired to the processor's own pins. This overlay adds what
+ * the processor reaches only through the FPGA design in this repository. The
+ * boot loader applies it after it has loaded the design (fpga.rbf), and boots
+ * the board's tree unchanged when it has not.
+ *
+ * The board's tree must be built with symbols (dtc -@).
+ *
+ * This file is a template: build.sh fills in the names between @ signs from
+ * the parameters of src/hdmi_scanout.sv, so that the frame buffer described
+ * here is the one the design reads. Do not write those numbers here by hand.
+ */
+/dts-v1/;
+/plugin/;
+
+/* UART0 on header JP1: pin 33 RX, pin 34 TX. */
+&uart0 {
+	status = "okay";
+};
+
+&{/aliases} {
+	/* An overlay cannot refer to &uart0 as a path, so the path is spelt out. */
+	serial1 = "/soc@0/serial@10c02000";
+};
+
+/*
+ * EMAC0's auxiliary snapshot trigger 1 comes from the FPGA: JP1 pin 31
+ * (PPS in). The PPS output is on pin 32.
+ */
+&gmac0 {
+	altr,f2h-ptp-aux-trig;
+};
+
+/*
+ * I2C0 goes through the FPGA to the board's I2C bus with the fan controller
+ * (AMC6821, 0x2e) and the HDMI transmitter (ADV7513, 0x39). The fan's PWM
+ * input is inverted on this board.
+ */
+&i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	fan_controller: fan-controller@2e {
+		compatible = "ti,amc6821";
+		reg = <0x2e>;
+		#pwm-cells = <2>;
+
+		fan {
+			/* 40000 ns period, flags 1 = PWM_POLARITY_INVERTED */
+			pwms = <&fan_controller 40000 1>;
+		};
+	};
+};
+
+/* Spare I2C bus (I2C_EMAC0) on JP1: pin 35 SCL, pin 36 SDA. */
+&i2c2 {
+	status = "okay";
+};
+
+/* SPI master 0 on JP1 pins 37 to 40. */
+&spi0 {
+	status = "okay";
+};
+
+/*
+ * HDMI. The design shows the memory at @FB_BASE@ as a picture of
+ * @FB_WIDTH@ x @FB_HEIGHT@ pixels, 4 bytes a pixel, with no registers. Linux
+ * must keep its own data out of that memory, and can use it as a frame buffer.
+ */
+&{/reserved-memory} {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	framebuffer@@FB_UNIT@ {
+		reg = <0x0 @FB_BASE@ 0x0 @FB_RESERVED@>;
+		no-map;
+	};
+};
+
+&{/chosen} {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	ranges;
+
+	framebuffer@@FB_UNIT@ {
+		compatible = "simple-framebuffer";
+		reg = <0x0 @FB_BASE@ 0x0 @FB_SIZE@>;
+		width = <@FB_WIDTH@>;
+		height = <@FB_HEIGHT@>;
+		stride = <@FB_STRIDE@>;
+		format = "x8r8g8b8";
+	};
+};

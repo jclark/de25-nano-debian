@@ -1,0 +1,13 @@
+#!/bin/bash
+# The Nios V BSP passes -march=rv32i and uses CSR instructions, which only old
+# binutils accepted; since binutils 2.38 they need the zicsr extension named.
+tool=/opt/xpack/bin/riscv-none-elf-${0##*/riscv32-unknown-elf-}
+args=()
+for a in "$@"; do
+  case $a in
+    -march=rv32*zicsr*) ;;
+    -march=rv32*) a=${a}_zicsr ;;
+  esac
+  args+=("$a")
+done
+exec "$tool" "${args[@]}"

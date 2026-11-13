@@ -1,0 +1,3 @@
+# DE25-Nano: set the fan curve when the fan controller (AMC6821) appears. It is reached through
+# the FPGA design, so without the design and its device tree overlay this rule never fires.
+ACTION=="add", SUBSYSTEM=="hwmon", ATTR{name}=="amc6821", RUN+="/usr/local/sbin/de25-fan-curve %p"

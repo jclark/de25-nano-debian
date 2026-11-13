@@ -1,0 +1,8 @@
+# Added to arm64 defconfig for the Terasic DE25-Nano. Merge with scripts/kconfig/merge_config.sh.
+# Agilex 5 temperature and voltage sensors, through the service layer (no device tree node)
+CONFIG_SENSORS_ALTERA_SOCFPGA_HWMON=y
+# Synopsys AXI DMA controller: spi0 and spi1 name it in "dmas", and without the driver their
+# probe defers for ever
+CONFIG_DW_AXI_DMAC=m
+# Framebuffer set up by U-Boot (simple-framebuffer node), for HDMI through the ADV7513
+CONFIG_FB_SIMPLE=y

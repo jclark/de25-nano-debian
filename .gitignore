@@ -1,0 +1,4 @@
+# Fetched sources and build trees
+/work/
+# Build outputs
+/out/

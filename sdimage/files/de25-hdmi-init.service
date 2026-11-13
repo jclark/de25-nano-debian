@@ -1,0 +1,11 @@
+[Unit]
+Description=Set up the DE25-Nano HDMI transmitter (ADV7513) for the FPGA scan-out
+ConditionPathExists=/sys/bus/i2c/devices/i2c-0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/de25-hdmi-init 0
+
+[Install]
+WantedBy=multi-user.target

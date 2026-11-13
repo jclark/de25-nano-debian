@@ -1,0 +1,5 @@
+# Added to Terasic's socfpga_agilex5_de25_nano_defconfig (u-boot-socfpga, branch
+# de25-nano-v2025.01). Merge with scripts/kconfig/merge_config.sh.
+# Device tree overlays: the "fdt apply" command and the "fdtoverlays" line of extlinux.conf,
+# for the overlay that goes with the FPGA design loaded from the SD card
+CONFIG_OF_LIBFDT_OVERLAY=y

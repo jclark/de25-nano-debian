@@ -1,0 +1,15 @@
+#!/bin/sh
+# Fan curve for the DE25-Nano fan controller (AMC6821), run by udev when its hwmon device
+# appears (60-de25-fan.rules), with the device's sysfs path as its argument.
+#
+# The device tree must give the PWM polarity as inverted: then a higher pwm value is a faster
+# fan. The controller's automatic mode follows the FPGA's temperature diode (temp2):
+#   below about 64 C  pwm 90, about 5,300 rpm (board sensor about 38 C)
+#   from about 76 C   full speed
+# Other minimum values tried: 58 gives about 2,900 rpm, quiet, board about 41 C; 130 gives
+# about 7,200 rpm, board 36 C, loud.
+h=/sys$1
+echo 90    > $h/pwm1_auto_point2_pwm
+echo 64000 > $h/temp2_auto_point2_temp
+echo 76000 > $h/temp2_auto_point3_temp
+echo 2     > $h/pwm1_enable
