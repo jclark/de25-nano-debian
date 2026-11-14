@@ -97,6 +97,10 @@ EOF
 fi
 chroot "$root" systemctl enable systemd-networkd systemd-resolved chrony ssh >/dev/null
 ln -sf /run/systemd/resolve/stub-resolv.conf "$root/etc/resolv.conf"
+# mmdebstrap copies the build machine's resolv.conf into the root file system for the
+# installation, and systemd-resolved's install script keeps it as a backup. It names the
+# build machine's name servers and has no place in the image.
+rm -f "$root/etc/.resolv.conf.systemd-resolved.bak"
 echo "en_US.UTF-8 UTF-8" > "$root/etc/locale.gen"; chroot "$root" locale-gen >/dev/null
 echo 'LANG=en_US.UTF-8' > "$root/etc/default/locale"
 
