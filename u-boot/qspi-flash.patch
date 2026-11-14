@@ -12,10 +12,156 @@ index db3872a6..13aa8ccc 100644
  
  &nand {
 diff --git a/arch/arm/mach-socfpga/misc_soc64.c b/arch/arm/mach-socfpga/misc_soc64.c
-index 26ba9727..84aa6f69 100644
+index 26ba9727..9547545c 100644
 --- a/arch/arm/mach-socfpga/misc_soc64.c
 +++ b/arch/arm/mach-socfpga/misc_soc64.c
-@@ -201,3 +201,35 @@ int misc_init_r(void)
+@@ -130,6 +130,145 @@ int arch_misc_init(void)
+ }
+ #endif
+ 
++#if IS_ENABLED(CONFIG_CADENCE_QSPI) && IS_ENABLED(CONFIG_SPL_ATF) && !IS_ENABLED(CONFIG_XPL_BUILD)
++#include <command.h>
++#include <cyclic.h>
++
++/*
++ * The QSPI flash belongs to the SDM unless the design in the flash hands it to the HPS.
++ * "sdmflash" reaches the flash through the SDM's own select, read, erase and write
++ * commands: the only way to it when the SDM keeps the flash, as it does with the factory
++ * flash contents.
++ */
++#define SDM_QSPI_SET_CS		52
++#define SDM_QSPI_ERASE		56
++#define SDM_QSPI_WRITE		57
++#define SDM_QSPI_READ		58
++#define SDM_QSPI_CHUNK_WORDS	1024	/* 4 KiB a command */
++
++static u32 sdm_args[2 + SDM_QSPI_CHUNK_WORDS] __aligned(64);
++
++static int sdm_qspi_begin(void)
++{
++	int ret;
++
++	ret = smc_send_mailbox(MBOX_QSPI_OPEN, 0, NULL, 0, NULL, NULL);
++	if (ret) {
++		smc_send_mailbox(MBOX_QSPI_CLOSE, 0, NULL, 0, NULL, NULL);
++		ret = smc_send_mailbox(MBOX_QSPI_OPEN, 0, NULL, 0, NULL, NULL);
++	}
++	if (ret) {
++		printf("SDM flash: open: %d\n", ret);
++		return ret;
++	}
++	sdm_args[0] = 0;	/* flash 0 */
++	ret = smc_send_mailbox(SDM_QSPI_SET_CS, 1, sdm_args, 0, NULL, NULL);
++	if (ret)
++		printf("SDM flash: select: %d\n", ret);
++	return ret;
++}
++
++static int do_sdmflash(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
++{
++	u32 addr, len, n, rlen, done = 0;
++	u32 *mem;
++	int ret;
++
++	if (argc < 2)
++		return CMD_RET_USAGE;
++
++	if (!strcmp(argv[1], "close")) {
++		ret = smc_send_mailbox(MBOX_QSPI_CLOSE, 0, NULL, 0, NULL, NULL);
++		printf("SDM flash: close: %d\n", ret);
++		return ret ? CMD_RET_FAILURE : 0;
++	}
++
++	if (!strcmp(argv[1], "info")) {
++		static u32 info[16] __aligned(64);
++
++		ret = sdm_qspi_begin();
++		if (!ret) {
++			rlen = ARRAY_SIZE(info);
++			ret = smc_send_mailbox(MBOX_QSPI_GET_DEVICE_INFO, 0, NULL, 0, &rlen, info);
++			printf("SDM flash: info: %d, %u words:", ret, rlen);
++			for (n = 0; !ret && n < rlen && n < ARRAY_SIZE(info); n++)
++				printf(" %08x", info[n]);
++			printf("\n");
++		}
++		smc_send_mailbox(MBOX_QSPI_CLOSE, 0, NULL, 0, NULL, NULL);
++		return ret ? CMD_RET_FAILURE : 0;
++	}
++
++	if (!strcmp(argv[1], "erase") && argc == 4) {
++		addr = hextoul(argv[2], NULL);
++		len = hextoul(argv[3], NULL);
++		if ((addr | len) & 0xffff)
++			return CMD_RET_USAGE;
++		ret = sdm_qspi_begin();
++		while (!ret && done < len) {
++			sdm_args[0] = addr + done;
++			sdm_args[1] = 0x10000 / 4;
++			ret = smc_send_mailbox(SDM_QSPI_ERASE, 2, sdm_args, 0, NULL, NULL);
++			if (ret)
++				printf("SDM flash: erase at 0x%x: %d\n", addr + done, ret);
++			done += 0x10000;
++			schedule();
++		}
++		smc_send_mailbox(MBOX_QSPI_CLOSE, 0, NULL, 0, NULL, NULL);
++		printf("SDM flash: erased 0x%x bytes at 0x%x: %s\n", done, addr, ret ? "FAILED" : "OK");
++		return ret ? CMD_RET_FAILURE : 0;
++	}
++
++	if ((!strcmp(argv[1], "read") || !strcmp(argv[1], "write")) && argc == 5) {
++		bool wr = argv[1][0] == 'w';
++
++		addr = hextoul(argv[2], NULL);
++		mem = (u32 *)hextoul(argv[3], NULL);
++		len = hextoul(argv[4], NULL);
++		if ((addr | len) & 3)
++			return CMD_RET_USAGE;
++		ret = sdm_qspi_begin();
++		while (!ret && done < len) {
++			n = min_t(u32, (len - done) / 4, SDM_QSPI_CHUNK_WORDS);
++			sdm_args[0] = addr + done;
++			sdm_args[1] = n;
++			if (wr) {
++				memcpy(&sdm_args[2], (u8 *)mem + done, n * 4);
++				ret = smc_send_mailbox(SDM_QSPI_WRITE, 2 + n, sdm_args, 0, NULL, NULL);
++			} else {
++				rlen = n;
++				ret = smc_send_mailbox(SDM_QSPI_READ, 2, sdm_args, 0, &rlen,
++						       (u32 *)((u8 *)mem + done));
++				if (!ret && rlen != n) {
++					printf("SDM flash: read at 0x%x: %u words of %u\n",
++					       addr + done, rlen, n);
++					ret = -EIO;
++				}
++			}
++			if (ret)
++				printf("SDM flash: %s at 0x%x: %d\n", argv[1], addr + done, ret);
++			else
++				done += n * 4;
++			schedule();
++		}
++		smc_send_mailbox(MBOX_QSPI_CLOSE, 0, NULL, 0, NULL, NULL);
++		printf("SDM flash: %s 0x%x bytes at 0x%x: %s\n", argv[1], done, addr,
++		       ret ? "FAILED" : "OK");
++		return ret ? CMD_RET_FAILURE : 0;
++	}
++
++	return CMD_RET_USAGE;
++}
++
++U_BOOT_CMD(sdmflash, 5, 0, do_sdmflash,
++	   "the QSPI flash through the SDM",
++	   "info\n"
++	   "sdmflash read <flash offset> <address> <bytes>\n"
++	   "sdmflash erase <flash offset> <bytes>   (multiples of 0x10000)\n"
++	   "sdmflash write <flash offset> <address> <bytes>\n"
++	   "sdmflash close");
++#endif
++
+ int arch_early_init_r(void)
+ {
+ 	socfpga_fpga_add(&altera_fpga[0]);
+@@ -201,3 +340,35 @@ int misc_init_r(void)
  	return 0;
  }
  

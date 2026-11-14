@@ -7,3 +7,9 @@ CONFIG_OF_LIBFDT_OVERLAY=y
 # Linux's device tree and sets its clock rate, when the board's flash contents give the SoC
 # the flash
 CONFIG_OF_BOARD_SETUP=y
+# The LED wired to the SoC (hps_led0 in the board's device tree) and the "led" command, with
+# blinking
+CONFIG_LED=y
+CONFIG_LED_GPIO=y
+CONFIG_LED_BLINK=y
+CONFIG_LED_SW_BLINK=y

@@ -35,8 +35,8 @@ its own toolchain name and the loader came out a different size.
   `580dcb5c4e10`, unchanged.
 - U-Boot: `https://github.com/terasic/u-boot-socfpga`, branch `de25-nano-v2025.01`, commit
   `d0f8813fd6bf`. It is U-Boot 2025.01 with Altera's and Terasic's additions.
-- Added here: `de25-nano.fragment`, merged into Terasic's `socfpga_agilex5_de25_nano_defconfig`. It
-  sets one option, `CONFIG_OF_LIBFDT_OVERLAY=y`, which Terasic's configuration leaves off.
+- Added here: `de25-nano.fragment`, merged into Terasic's `socfpga_agilex5_de25_nano_defconfig`. Its
+  first option is `CONFIG_OF_LIBFDT_OVERLAY=y`, which Terasic's configuration leaves off.
   Without it U-Boot has neither the `fdt apply` command nor the `fdtoverlays` line of the boot
   menu, and the device tree overlay for the FPGA design cannot be applied.
 - Added here: `qspi-flash.patch`, applied to Terasic's U-Boot source, and
@@ -53,6 +53,20 @@ its own toolchain name and the loader came out a different size.
     the controller's clock to the rate the SDM reported (500 MHz on this board). Altera's
     U-Boot does the same with a script, `linux_qspi_enable`, which cannot be used here
     because the boot menu loads the device tree.
+- The patch also adds a U-Boot command, `sdmflash`, which reads, erases and writes the flash
+  through the SDM's own commands. It works where the SDM keeps the flash, so it is how a
+  board with the factory flash contents gets its flash written without JTAG:
+  - `sdmflash info`
+  - `sdmflash read <flash offset> <address> <bytes>`
+  - `sdmflash erase <flash offset> <bytes>` (multiples of 0x10000)
+  - `sdmflash write <flash offset> <address> <bytes>`
+  - `sdmflash close`
+
+  The whole 16 MiB takes about 75 s to read, 8 s to erase and 69 s to write.
+- Four more options in the fragment, `CONFIG_LED`, `CONFIG_LED_GPIO`, `CONFIG_LED_BLINK` and
+  `CONFIG_LED_SW_BLINK`, give the `led` command for the one LED wired to the SoC (`HPS_LED`
+  on the board, `hps_led0` in the device tree): `led hps_led0 on`, `off`, or
+  `blink <milliseconds per cycle>`. It keeps blinking while `sdmflash` works.
 
 Why Terasic's U-Boot and not mainline U-Boot: the first-stage loader of a factory board is
 built from this source at this commit (the loader built here is the same as Terasic's prebuilt
