@@ -126,7 +126,7 @@ All of this was developed on one board in November 2026.
 | Task F built by its script from a clean start | yes |
 | Task I's image booted with nothing changed by hand afterwards | yes, on a board with the factory flash contents |
 | Stage 1: the image on a board with factory flash contents | yes |
-| Writing the flash from the board: `de25-fpga enable`, a reboot, U-Boot saves, writes and compares, a power cycle | yes, once. The LED blinked while it worked; its final state was wrong in that run (dark, not steady on) and has been corrected since, not yet seen on the board |
+| Writing the flash from the board: `de25-fpga enable`, a reboot, U-Boot saves, writes and compares, a power cycle | yes, once. The LED blinked while it worked. Its final state was wrong in that run, dark where it should be steady on; the LED's polarity has been corrected since and the three LED states checked at the U-Boot prompt |
 | Stage 2 after that, with nothing typed: the FPGA design loaded, network, the fan controller found, the HDMI set-up unit run, `/dev/mtd0` | yes |
 | First-boot set-up, with the two optional files | yes |
 | Going back with `de25-fpga restore`, then a power cycle | yes, once |
