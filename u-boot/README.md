@@ -68,6 +68,8 @@ its own toolchain name and the loader came out a different size.
   on the board, `hps_led0` in the device tree): `led hps_led0 on`, `off`, or
   `blink <milliseconds per cycle>`. `sdmflash` gives U-Boot's
   scheduler a turn between its commands to the SDM, so that the blinking goes on while it works.
+- The patch also corrects the LED's entry in Terasic's device tree for U-Boot, which has it
+  lit when its pin is low: the LED lights when the pin is high.
 - `CONFIG_CMD_HASH=y` in the fragment gives the `hash` command, with which the boot script
   names the saved flash contents by their crc32.
 
