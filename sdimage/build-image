@@ -24,7 +24,7 @@
 #
 # Settings, as environment variables (defaults in mkimage-inner.sh):
 #   SUITE (trixie)  HOSTNAME_ (de25-nano)  USER_ (debian)
-#   MAC (none: made up at the first boot and kept)  IMAGE_MB (3072)  IMAGE_NAME (de25-nano.img)
+#   MAC (none: made up at the first boot and kept)  IMAGE_MB (1024)  IMAGE_NAME (de25-nano.img)
 #
 # The user's password is the user name. With authorized_keys present, ssh accepts keys only;
 # without, the password has to be changed at first login. At the first boot the card also

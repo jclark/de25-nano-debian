@@ -6,7 +6,7 @@
 set -eu
 
 : "${SUITE:=trixie}" "${HOSTNAME_:=de25-nano}" "${USER_:=debian}" "${IMAGE_NAME:=de25-nano.img}"
-: "${IMAGE_MB:=3072}" "${FAT_MB:=64}" "${DISK_ID:=0xde250001}" "${MAC:=}"
+: "${IMAGE_MB:=1024}" "${FAT_MB:=64}" "${DISK_ID:=0xde250001}" "${MAC:=}"
 : "${OWNER:=0:0}"
 
 DEB=$(ls /in/linux-image-*_arm64.deb 2>/dev/null | head -1)

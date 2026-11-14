@@ -12,7 +12,7 @@ flowchart LR
 
 ## What it produces
 
-`out/sdimage/de25-nano.img`: a complete card image, 3 GB (about 115 MB compressed with `xz`),
+`out/sdimage/de25-nano.img`: a complete card image, 1 GB (about 115 MB compressed with `xz`),
 to be written to a microSD card ([install-card.md](../install-card.md)).
 
 It is one image for every board. It carries the FPGA design, its device tree overlay and the

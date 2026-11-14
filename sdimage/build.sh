@@ -13,7 +13,7 @@
 # everybody, and the first boot sets up what differs (see sdimage/README.md):
 #   SSH_KEYS   a file of ssh public keys for the user
 #   MAC        a fixed Ethernet address, e.g. 02:de:25:00:00:01 (default: made up at first boot)
-#   HOSTNAME_ (de25-nano)  USER_ (debian)  SUITE (trixie)  IMAGE_MB (3072)
+#   HOSTNAME_ (de25-nano)  USER_ (debian)  SUITE (trixie)  IMAGE_MB (1024)
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
 fail() { echo "sdimage/build.sh: $*" >&2; exit 1; }
