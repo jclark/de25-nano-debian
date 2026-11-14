@@ -4,6 +4,8 @@
 # (extlinux/extlinux.conf) and for a script. It finds this script first (the FAT partition is
 # partition 1 and has no menu), runs it, and goes on to the menu on the root partition.
 # U-Boot prints "SCRIPT FAILED: continuing..." when a script returns; that is its normal wording.
+# No apostrophes in the commands below, also not inside double quotes: this U-Boot's shell
+# answers "syntax error" to the whole script.
 #
 # Wrap it after any change:
 #   mkimage -A arm64 -T script -C none -n "DE25-Nano boot script" -d boot.cmd boot.scr
@@ -139,7 +141,7 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
     if test "${flash_ok}" = yes; then
         led hps_led0 on
         echo "*** The flash is written and verified. ***"
-        echo "*** Unplug the board's power and its USB-C cable, then plug both in again. ***"
+        echo "*** Unplug the power and the USB-C cable, then plug both in again. ***"
     else
         # A one-line text file for "de25-fpga status": failed_while=<the step>. The export
         # ends with a zero byte, which is left out.
