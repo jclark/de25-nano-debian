@@ -124,9 +124,10 @@ All of this was developed on one board in November 2026.
 | Task B built by its script from a clean start | yes |
 | Task K built by its script, cross-compiled on x86 | yes |
 | Task F built by its script from a clean start | yes |
-| Task I's image as now built, booted with nothing changed by hand afterwards | not yet; the image before the flash write was added: yes, on a board in stage 2 |
-| Stage 2 on the board: boots with nothing typed; first-boot set-up, with the two optional files; network; fan; HDMI console | yes |
-| Stage 1: the image on a board with untouched factory flash contents | yes, with the image before the flash write was added |
-| Writing the flash from the board: `de25-fpga enable`, then U-Boot at the next boot | not yet; the same read, erase, write and compare typed at the U-Boot prompt: yes |
-| Going back with `de25-fpga restore` | not yet; the same write of the factory contents from Linux with `flashcp`: yes |
+| Task I's image booted with nothing changed by hand afterwards | yes, on a board with the factory flash contents |
+| Stage 1: the image on a board with factory flash contents | yes |
+| Writing the flash from the board: `de25-fpga enable`, a reboot, U-Boot saves, writes and compares, a power cycle | yes, once. The LED blinked while it worked; its final state was wrong in that run (dark, not steady on) and has been corrected since, not yet seen on the board |
+| Stage 2 after that, with nothing typed: the FPGA design loaded, network, the fan controller found, the HDMI set-up unit run, `/dev/mtd0` | yes |
+| First-boot set-up, with the two optional files | yes |
+| Going back with `de25-fpga restore`, then a power cycle | yes, once |
 | Writing the flash over JTAG | yes, many times; writing the read-back that way: not yet |
