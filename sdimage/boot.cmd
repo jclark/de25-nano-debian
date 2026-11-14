@@ -37,7 +37,7 @@ fi
 # through the SDM, on a board whose flash the SDM keeps. The LED wired to the SoC (HPS_LED)
 # shows how it is going:
 #   one second on, one second off   working: leave the power alone
-#   steady on                       written and verified: unplug the power and the USB-C cable
+#   steady on                       written and verified: unplug the power
 #   four times a second             failed
 # Nothing is erased until the new contents have been checked against their crc32 and the
 # contents the flash had before are safe on the card: they are saved beside this script as
@@ -141,7 +141,7 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
     if test "${flash_ok}" = yes; then
         led hps_led0 on
         echo "*** The flash is written and verified. ***"
-        echo "*** Unplug the power and the USB-C cable, then plug both in again. ***"
+        echo "*** Unplug the power, then plug it in again. ***"
     else
         # A one-line text file for "de25-fpga status": failed_while=<the step>. The export
         # ends with a zero byte, which is left out.

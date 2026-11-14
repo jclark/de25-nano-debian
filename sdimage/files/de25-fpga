@@ -100,7 +100,7 @@ EOF
 The flash will be written at the next boot. Reboot when ready (sudo reboot), then watch
 the LED beside the HPS KEY button:
   one second on, one second off   working: leave the power alone
-  steady on                       done: unplug the power and the USB-C cable, then plug both in again
+  steady on                       done: unplug the power, then plug it in again
   four times a second             it failed: the serial console says why
 After the power cycle the board boots with the FPGA design loaded.
 EOF
@@ -152,8 +152,7 @@ You must specify a file name: de25-fpga restore FILE"
     /usr/sbin/flashcp -v "$file" "$mtd"
     cat <<EOF
 The flash is written and verified. The chip takes up the new contents only at power-on:
-shut down (sudo systemctl halt), then unplug the board's power and its USB-C cable and plug
-both in again.
+shut down (sudo systemctl halt), then unplug the board's power and plug it in again.
 Do not restart without the power cycle.
 EOF
     ;;

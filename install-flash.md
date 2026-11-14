@@ -54,9 +54,8 @@ The serial console shows the same, with each step named.
 
 ### 3. Power cycle
 
-When the LED is steady on, unplug the board's power and the USB-C cable (the cable alone
-keeps part of the board powered), wait a few seconds, and plug both in again. The chip takes
-up new flash contents only at power-on.
+When the LED is steady on, unplug the board's power, wait a few seconds, and plug it in
+again. The chip takes up new flash contents only at power-on.
 
 The board boots with the FPGA design loaded: U-Boot prints `FPGA reconfiguration OK!` and
 applies the device tree overlay, and the header signals, the fan control and HDMI are there.
