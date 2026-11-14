@@ -13,14 +13,14 @@ flowchart LR
 ## What it produces
 
 `out/sdimage/de25-nano.img`: a complete card image, 1 GB (about 115 MB compressed with `xz`),
-to be written to a microSD card ([install-card.md](../install-card.md)).
+to be written to a microSD card ([install.md](../install.md)).
 
 It is one image for every board. It carries the FPGA design, its device tree overlay and the
 first-stage image for the flash in `/usr/lib/de25-nano/`, where the boot does not use them, so a
 new card boots without the design, which is stage 1. `sudo de25-fpga enable` copies the
 design and the overlay to where the boot uses them; on a board whose flash is not yet
 written it also has U-Boot write the flash at the next boot
-([install-flash.md](../install-flash.md)). `sudo de25-fpga disable` undoes it.
+([install.md](../install.md)). `sudo de25-fpga disable` undoes it.
 
 When Task F has not been built, the script makes `out/sdimage/de25-nano-nofpga.img` instead:
 the same image without the FPGA design, its overlay and the first-stage image.
@@ -141,7 +141,7 @@ sudo reboot
 ```
 
 If the first-stage image has changed too, on a board already in stage 2, write it from
-Linux, then shut down and power cycle ([install-flash.md](../install-flash.md), step 3):
+Linux, then shut down, unplug the power and plug it in again:
 
 ```
 sudo cp de25-nano.hps.rpd /usr/lib/de25-nano/hps-first.rpd

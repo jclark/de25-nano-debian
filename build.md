@@ -1,4 +1,7 @@
-# Bring-up
+# Building from source
+
+This page is for building the card image yourself. To install the released image, see
+[install.md](install.md).
 
 A board is brought up in two stages. Stage 1 ends with Debian running from an SD card on a
 board that is otherwise untouched. Stage 2 goes on to replace the contents of the board's
@@ -88,11 +91,9 @@ flowchart LR
 | F | FPGA design | `fpga.rbf`, `fpga.dtbo` and the first-stage image for the flash, all for the card | the loader from Task B, for its last step | Docker with the Quartus image | [fpga/README.md](fpga/README.md) |
 | I | SD card image | the card image, one for both stages | Tasks B and K, and Task F for the FPGA design | Docker, qemu-user | [sdimage/README.md](sdimage/README.md) |
 
-Then two things done by hand:
-
-- [install-card.md](install-card.md): write the card, first boot.
-- [install-flash.md](install-flash.md): stage 2 only. Write the flash from the board, which
-  also enables the FPGA design, and how to go back; the same over JTAG.
+The result is `out/sdimage/de25-nano.img`. Write it to a card and carry on as in
+[install.md](install.md), with that file in place of the downloaded one.
+[flash-jtag.md](flash-jtag.md) has the other way of writing the flash, over JTAG.
 
 ## Order of work
 
@@ -114,6 +115,39 @@ directories are created in this repository and are not in git.
 
 If an agent is doing this for you, [AGENTS.md](AGENTS.md) tells it the order, what can run in
 parallel, and where it must stop and ask you (writing the card, anything to do with the flash).
+
+## Checking a board
+
+The SoC's serial console is on the board's USB-C socket marked for the USB Blaster, which
+gives a PC two serial ports and the JTAG cable. On Linux the console is
+
+```
+/dev/serial/by-id/usb-TERASIC_DE25-Nano_<serial number>-if02-port0
+```
+
+at 115200 baud. U-Boot counts down five seconds there before it boots; a key stops it at
+its prompt, and `boot` carries on.
+
+On the board, in stage 1:
+
+```
+uname -r                        # the kernel built in Task K
+ip -br addr show end0           # an address from DHCP
+ls /sys/class/ptp/              # ptp0: the Ethernet MAC's clock
+sudo ethtool -T end0            # hardware timestamping
+systemctl --failed              # nothing
+```
+
+and in stage 2 also:
+
+```
+sudo de25-fpga status           # the design enabled, the flash holding hps-first.rpd
+ls /dev/ttyS1                   # UART0 on the header
+sudo dmesg | grep simple-framebuffer
+cat /sys/class/hwmon/hwmon*/name | grep amc6821    # the fan controller
+```
+
+More tests of the header pins and of HDMI are in [tools/](tools/README.md).
 
 ## What has been tested
 

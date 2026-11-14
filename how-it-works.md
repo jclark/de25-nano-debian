@@ -12,7 +12,7 @@ CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
 
 - Stage 1: the factory contents, which also hold Terasic's FPGA design.
 - Stage 2: the first-stage image from Task F (`de25-nano.hps.rpd`), and no FPGA design.
-  Written once, by U-Boot from the card, or over JTAG ([install-flash.md](install-flash.md)).
+  Written once, by U-Boot from the card, or over JTAG ([flash-jtag.md](flash-jtag.md)).
 
 **SD card, partition 1.** FAT, 64 MB, mounted at `/boot/firmware`.
 

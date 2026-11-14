@@ -1,31 +1,44 @@
 # Debian on the Terasic DE25-Nano
 
-This repository brings up Debian 13 on the [Terasic DE25-Nano](https://www.terasic.com.tw/)
-(Altera Agilex 5 SoC FPGA):
-
-- a kernel close to mainline, with the board's device tree and with Ethernet PTP changes that
-  are planned for submission upstream;
-- Debian from the Debian archive;
-- the board's hardware working under Linux: Ethernet with its PTP clock, the fan controller,
-  HDMI, and a UART, I2C and SPI on the 40-pin header.
+This repository provides a Debian 13 card image for the
+[Terasic DE25-Nano](https://www.terasic.com.tw/) (Altera Agilex 5 SoC FPGA), and everything
+needed to build it from source. With it the board's hardware works under Linux: Ethernet
+with its PTP clock, the fan controller, HDMI, and a UART, I2C, SPI and PPS signals on the
+40-pin GPIO header.
 
 The motivating use is precise timing. The board's Ethernet PTP clock (PHC) can timestamp a
 pulse-per-second (PPS) signal in hardware, so the DE25-Nano can serve as a PTP grandmaster
 with [SatPulse](https://satpulse.net/), or as an NTP server with chrony using a PHC refclock
 with `extpps`.
 
-There are no prebuilt binaries at present. This repository says how to build a working system
-from the parts listed under [Where the parts come from](#where-the-parts-come-from).
+There are two ways to use it:
 
-Details are in the following pages:
+- **[install.md](install.md)**: install the released card image on a board. Nothing has to
+  be built.
+- **[build.md](build.md)**: build everything from source.
 
-- **[bringup.md](bringup.md)**: how to build everything needed from source and install it on
-  a board.
-- **[how-it-works.md](how-it-works.md)**: how the parts specific to this repository work:
-  the boot arrangement, and the hardware support provided through the FPGA.
+**[how-it-works.md](how-it-works.md)** explains the parts specific to this repository: the
+boot arrangement, and the hardware support provided through the FPGA.
 
 The bring-up, and this repository documenting it, were done using Claude Fable 5.2 under my
 supervision.
+
+## What is in the image
+
+- **Boot loader:** Terasic's U-Boot for the board, built with some additional configuration
+  options and some patches, the most significant of which allows it to write the board's
+  flash.
+- **Secure firmware:** Terasic's TF-A for the board.
+- **Kernel:** Linux 7.4-rc2 with Ethernet driver fixes.
+- **Device tree:** Altera's device tree for the board, ported to the mainline kernel, and an
+  overlay for what the FPGA bitstream adds.
+- **User space:** Debian 13 (trixie) from the Debian archive.
+- **FPGA bitstream:** built with Quartus Pro 26.1.1 from
+  - Altera's HPS-first reference design for the board;
+  - a custom video block, which drives the HDMI transmitter from a frame buffer;
+  - connections from the GPIO header and the fan controller to the SoC.
+
+The sources and their exact versions are in [build.md](build.md) and the pages it links to.
 
 ## Known limits
 
@@ -33,32 +46,8 @@ supervision.
   device refused the signal; a monitor and another capture device accept it.
 - The board stores no Ethernet address. The first boot of a card makes one up and keeps it, so
   the address belongs to the card, not the board.
-- U-Boot and TF-A are built from Terasic's repositories: TF-A unchanged, U-Boot with a patch
-  and a few configuration options ([u-boot/README.md](u-boot/README.md)). The first-stage loader in the factory flash was
-  built from the same source, which is why this U-Boot works on a factory board.
-
-## Where the parts come from
-
-- **Boot loader:** U-Boot, from
-  [terasic/u-boot-socfpga](https://github.com/terasic/u-boot-socfpga), branch
-  `de25-nano-v2025.01`, with the patch in [u-boot/](u-boot/).
-- **Secure firmware:** TF-A, from
-  [terasic/arm-trusted-firmware](https://github.com/terasic/arm-trusted-firmware), branch
-  `de25-nano-v2.12.0`.
-- **Kernel:** Linux 7.4-rc2 with the board's device tree and with Ethernet PTP changes that
-  are planned for submission upstream, from [jclark/linux](https://github.com/jclark/linux), branch
-  `de25-nano-mainline/v7.4`.
-- **User space:** Debian 13 (trixie), from the Debian archive.
-- **FPGA bitstream:** compiled with Quartus Pro 26.1.1 (Docker Hub,
-  `alterafpga/quartus-pro:26.1.1-agilex5`) from:
-  - Altera's reference design for the board:
-    [altera-fpga/agilex5-ed-hps-baseline](https://github.com/altera-fpga/agilex5-ed-hps-baseline),
-    tag `QPDS26.1.1_REL_GSRD_PR`, directory `terasic-de25-nano-devkit/baseline-a55`;
-  - an HDMI video block written for this repository:
-    [fpga/src/hdmi_scanout.sv](fpga/src/hdmi_scanout.sv), SystemVerilog, with its testbench in
-    [fpga/sim/](fpga/sim/);
-  - the changes in [fpga/](fpga/) that connect the video block, the header signals and the
-    board's I2C bus to the SoC.
+- U-Boot and TF-A are Terasic's and not mainline. The first-stage loader in a board's factory
+  flash was built from the same source, which is why this U-Boot works on a factory board.
 
 ## Licence
 
