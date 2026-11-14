@@ -37,10 +37,11 @@ Stop and ask before each of these, naming exactly what you are about to do:
 
 - **Writing the SD card.** `dd` to the wrong device destroys a disk. Show the person the
   output of `lsblk` and have them confirm the device name. Never guess it.
-- **Any flash operation** (`install-flash.md`). Reading the flash back stops the running
-  system; writing it can leave the board unable to start until it is written again over JTAG.
-  Do the read-back first and make sure the person has put the file somewhere safe before the
-  write.
+- **Any flash operation** (`install-flash.md`): `sudo de25-fpga enable` on a board whose
+  flash is not yet written, `sudo de25-fpga restore`, and anything over JTAG. A write that
+  fails part-way leaves the board unable to start until the flash is written over JTAG.
+  After a write from the board, have the person copy `saved-<crc32>.rpd` from the
+  card to somewhere else.
 - **Shutting down or restarting the board.**
 - Plugging cables, swapping the card, power cycling, and looking at the HDMI output are theirs
   to do; say plainly what you need and wait.

@@ -8,19 +8,19 @@
 #                    the kernel as a Debian package (kernel, modules, device trees), from the
 #                    kernel's own "make bindeb-pkg"; the board's device tree in it must be
 #                    built with symbols
-#   u-boot.itb       U-Boot and TF-A, built from Terasic's source with overlay support; it has to
+#   u-boot.itb       U-Boot and TF-A, built from Terasic's source with the changes in u-boot/; it has to
 #                    match the first-stage loader in the board's QSPI flash
 #   config           optional, the kernel configuration
 #   authorized_keys  optional, ssh keys for the user
-#   fpga.rbf         optional: the FPGA design (core image), and with it fpga.dtbo, the device
-#   fpga.dtbo          tree overlay built with the design. Both or neither. They go into
-#                      /usr/lib/de25-nano and are not used until "de25-fpga enable" is run on
-#                      the board, after its flash has been written: a board with the factory
-#                      flash contents refuses the design and then hangs at its next restart.
+#   fpga.rbf         optional, all three or none: the FPGA design (core image), the device
+#   fpga.dtbo          tree overlay built with the design, and the first-stage image for the
+#   hps-first.rpd      flash. They go into /usr/lib/de25-nano and are not used until
+#                      "de25-fpga enable" is run on the board.
 #
 # Without them the image has no FPGA design: console and network only, on any board. The files
 # for the fan and HDMI are installed all the same and stay idle. To add the design later, on
-# the card: copy fpga.rbf and fpga.dtbo to /usr/lib/de25-nano and run "de25-fpga enable".
+# the card: copy fpga.rbf, fpga.dtbo and hps-first.rpd to /usr/lib/de25-nano and run
+# "de25-fpga enable".
 #
 # Settings, as environment variables (defaults in mkimage-inner.sh):
 #   SUITE (trixie)  HOSTNAME_ (de25-nano)  USER_ (debian)

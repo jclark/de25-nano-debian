@@ -1,8 +1,8 @@
 #!/bin/sh
 # Runs inside the build container as root. Called by build-image; see that file for the inputs.
 # Produces /out/$IMAGE_NAME: MBR; partition 1 FAT (/boot/firmware: U-Boot and its boot script);
-# partition 2 ext4 (/, with the kernel and the boot menu in /boot, and the FPGA design, not
-# yet enabled, in /usr/lib/de25-nano).
+# partition 2 ext4 (/, with the kernel and the boot menu in /boot, and the FPGA design, its
+# overlay and the first-stage image, not yet enabled, in /usr/lib/de25-nano).
 set -eu
 
 : "${SUITE:=trixie}" "${HOSTNAME_:=de25-nano}" "${USER_:=debian}" "${IMAGE_NAME:=de25-nano.img}"
@@ -15,7 +15,7 @@ KREL=$(dpkg-deb -f "$DEB" Package | sed 's/^linux-image-//')
 DTB=intel/socfpga_agilex5_de25_nano.dtb    # under the package's device tree directory; fdtfile in boot.cmd
 FABRIC=no
 if [ -f /in/fpga.rbf ] || [ -f /in/fpga.dtbo ]; then
-  [ -f /in/fpga.rbf ] && [ -f /in/fpga.dtbo ] || { echo "fpga.rbf and fpga.dtbo go together" >&2; exit 1; }
+  [ -f /in/fpga.rbf ] && [ -f /in/fpga.dtbo ] && [ -f /in/hps-first.rpd ] || { echo "fpga.rbf, fpga.dtbo and hps-first.rpd go together" >&2; exit 1; }
   FABRIC=yes
 fi
 PARTUUID_ROOT=$(printf '%08x-02' "$DISK_ID")
@@ -27,7 +27,7 @@ mkdir -p "$work"; find "$work" -mindepth 1 -maxdepth 1 -exec rm -rf {} +; mkdir 
 
 # 1. Debian root filesystem from the archive.
 mmdebstrap --architectures=arm64 --variant=important \
-  --include=systemd-sysv,systemd-resolved,systemd-timesyncd,udev,kmod,openssh-server,sudo,ca-certificates,locales,iproute2,iputils-ping,ethtool,pciutils,usbutils,less,vim-tiny,curl,fdisk,cloud-guest-utils,e2fsprogs,dosfstools,dbus,libnss-systemd,i2c-tools,linuxptp,mtd-utils,u-boot-menu \
+  --include=systemd-sysv,systemd-resolved,chrony,udev,kmod,openssh-server,sudo,ca-certificates,locales,iproute2,iputils-ping,ethtool,pciutils,usbutils,less,vim-tiny,curl,fdisk,cloud-guest-utils,e2fsprogs,dosfstools,dbus,libnss-systemd,i2c-tools,linuxptp,mtd-utils,u-boot-menu \
   "$SUITE" "$root"
 
 # 2. What the boot menu is written from, before the kernel is installed: installing a kernel
@@ -42,13 +42,13 @@ PARTUUID=$PARTUUID_ROOT  /               ext4  defaults,noatime  0 1
 PARTUUID=$PARTUUID_FAT  /boot/firmware  vfat  defaults,noatime  0 2
 EOF
 install -m 644 /sd/files/u-boot.default "$root/etc/default/u-boot"
-# The FPGA design and its overlay are kept out of the way of the boot: U-Boot must not offer
-# the design to a board with the factory flash contents. "de25-fpga enable" on the board puts
-# them where the boot uses them.
+# The FPGA design and its overlay are kept out of the way of the boot, with the first-stage
+# image the design belongs to (hps-first.rpd). "de25-fpga enable" on the board puts them where
+# the boot uses them, and has the flash written first on a board that needs it.
 install -m 755 /sd/files/de25-fpga "$root/usr/local/sbin/de25-fpga"
 if [ "$FABRIC" = yes ]; then
   install -d "$root/usr/lib/de25-nano"
-  install -m 644 /in/fpga.rbf /in/fpga.dtbo "$root/usr/lib/de25-nano/"
+  install -m 644 /in/fpga.rbf /in/fpga.dtbo /in/hps-first.rpd "$root/usr/lib/de25-nano/"
 fi
 
 # 3. The kernel package: kernel, modules, device trees.
@@ -95,7 +95,7 @@ NamePolicy=keep kernel database onboard slot path
 AlternativeNamesPolicy=database onboard slot path mac
 EOF
 fi
-chroot "$root" systemctl enable systemd-networkd systemd-resolved systemd-timesyncd ssh >/dev/null
+chroot "$root" systemctl enable systemd-networkd systemd-resolved chrony ssh >/dev/null
 ln -sf /run/systemd/resolve/stub-resolv.conf "$root/etc/resolv.conf"
 echo "en_US.UTF-8 UTF-8" > "$root/etc/locale.gen"; chroot "$root" locale-gen >/dev/null
 echo 'LANG=en_US.UTF-8' > "$root/etc/default/locale"
@@ -139,8 +139,9 @@ root_mb=$((IMAGE_MB - FAT_MB - 1))
 rm -f "$work/fat.img" "$work/root.img" "$img"
 mkfs.vfat -C -n FIRMWARE "$work/fat.img" $((FAT_MB * 1024)) >/dev/null
 mcopy -i "$work/fat.img" /in/u-boot.itb ::u-boot.itb
-# The boot script: sets the device tree name for the menu and loads fpga.rbf if it is there.
-# The image does not put it there: "de25-fpga enable" does, on the board.
+# The boot script: sets the device tree name for the menu, writes the flash when
+# "de25-fpga enable" has asked for it, and loads fpga.rbf if it is there. The image does not
+# put fpga.rbf there: "de25-fpga enable" does, on the board.
 mkimage -A arm64 -T script -C none -n "DE25-Nano boot script" -d /sd/boot.cmd "$work/boot.scr" >/dev/null
 mcopy -i "$work/fat.img" "$work/boot.scr" ::boot.scr
 sed -e "s/@USER@/$USER_/g" -e "s/@HOSTNAME@/$HOSTNAME_/g" /sd/files/firmware-README.txt > "$work/README.txt"

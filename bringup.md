@@ -8,27 +8,27 @@ fan control and HDMI.
 The two differ in how the FPGA design is stored. As the board is shipped, Terasic's whole
 FPGA design is in the flash, together with the first-stage loader, and the chip configures the
 FPGA from the flash at power-on. Changing anything in the design means writing the flash
-again over JTAG. Stage 2 follows the arrangement of Altera's reference design instead. The
-flash holds only the first stage: the SoC's configuration, including which of its peripherals
+again. Stage 2 follows the arrangement of Altera's reference design instead. The
+flash holds only the first-stage image: the SoC's configuration, including which of its peripherals
 are connected to the FPGA, and the loader. The FPGA design itself is a file on the SD card,
 which U-Boot loads into the FPGA at every boot, so changing the design does not need the flash
 to be written again.
 
 | | Stage 1 | Stage 2 |
 |---|---|---|
-| What you do | Write an SD card | Also write the board's flash, once, over JTAG |
-| The flash | Left as it came from the factory | Holds the first stage built here. The FPGA design is then a file on the SD card, loaded at every boot. |
-| What you need | Docker | Also Altera's Quartus Pro, which is free for this FPGA and comes as a Docker image (17.5 GiB), to build the FPGA design and to write the flash |
+| What you do | Write an SD card | Also write the board's flash, once: one command on the board, a reboot and a power cycle |
+| The flash | Left as it came from the factory | Holds the first-stage image built here. The FPGA design is then a file on the SD card, loaded at every boot. |
+| What you need | Docker | Also Altera's Quartus Pro, which is free for this FPGA and comes as a Docker image (17.5 GiB), to build the FPGA design |
 | Debian, near-mainline kernel, serial console, Ethernet with its PTP clock | yes | yes |
 | PPS input and output, UART, I2C and SPI on the 40-pin header | no | yes |
 | Fan control | no: the fan runs at its power-on speed, which is loud | yes |
 | HDMI console, 1920x1080 | no | yes |
-| The way back | Put the original card back in | Write back the copy of the flash that you read out first |
+| The way back | Put the original card back in | One command writes back the copy of the flash that was saved to the card before the write |
 
 Stage 1 changes nothing on the board, so start there. Stage 2 can follow later with the same
-SD card: one card image serves both. The image carries the FPGA design, but the design is
-not loaded until it has been enabled on the board, with one command, after the flash has
-been written.
+SD card: one card image serves both. The image carries the FPGA design and the first-stage
+image for the flash. Neither is used until one command on the board asks for it: the flash
+is then written at the next boot, and after a power cycle the design is loaded at every boot.
 
 Everything is built from source on one x86-64 Linux machine, in containers.
 
@@ -39,8 +39,7 @@ Everything is built from source on one x86-64 Linux machine, in containers.
 - For Task I on x86: qemu-user with binfmt for aarch64 (Debian and Ubuntu: package
   `qemu-user-static`, or `qemu-user-binfmt`), because the Debian root filesystem is put together
   by running arm64 programs.
-- A microSD card of 4 GB or more, and the board's USB-C cable for the serial console (and for
-  JTAG in stage 2).
+- A microSD card of 4 GB or more, and the board's USB-C cable for the serial console.
 
 ## Tasks
 
@@ -66,10 +65,10 @@ flowchart LR
   pkg[/"kernel package<br/>linux-image .deb"/]
   rbf[/"fabric<br/>fpga.rbf"/]
   dtbo[/"overlay<br/>fpga.dtbo"/]
-  jic[/"flash image<br/>.jic"/]
+  rpd[/"first-stage image<br/>de25-nano.hps.rpd"/]
   img[/"de25-nano.img"/]
   wc[/"Write the card"\]
-  wf[/"Write the flash<br/>over JTAG"\]
+  wf[/"Write the flash<br/>de25-fpga enable"\]
   sd[("microSD card")]
   qspi[("QSPI flash")]
   P1 --> itb --> P4
@@ -77,22 +76,23 @@ flowchart LR
   P2 --> pkg --> P4
   P3 -.-> rbf -.-> P4
   P3 -.-> dtbo -.-> P4
-  P3 -.-> jic -.-> wf -.-> qspi
+  P3 -.-> rpd -.-> P4
   P4 --> img --> wc --> sd
+  sd -.-> wf -.-> qspi
 ```
 
 | Task | Builds | Produces | Needs first | Tool | Instructions |
 |---|---|---|---|---|---|
 | B | U-Boot, with TF-A | `u-boot.itb` for the card; the first-stage loader for the flash image | nothing | Docker | [u-boot/README.md](u-boot/README.md) |
 | K | Kernel | the kernel as a Debian package: kernel, modules and device trees | nothing | Docker | [kernel/README.md](kernel/README.md) |
-| F | FPGA design | `fpga.rbf` and `fpga.dtbo` for the card; the flash image | the loader from Task B, for its last step | Docker with the Quartus image | [fpga/README.md](fpga/README.md) |
+| F | FPGA design | `fpga.rbf`, `fpga.dtbo` and the first-stage image for the flash, all for the card | the loader from Task B, for its last step | Docker with the Quartus image | [fpga/README.md](fpga/README.md) |
 | I | SD card image | the card image, one for both stages | Tasks B and K, and Task F for the FPGA design | Docker, qemu-user | [sdimage/README.md](sdimage/README.md) |
 
 Then two things done by hand:
 
 - [install-card.md](install-card.md): write the card, first boot.
-- [install-flash.md](install-flash.md): stage 2 only. Read the flash back, write it, enable
-  the FPGA design, and how to go back.
+- [install-flash.md](install-flash.md): stage 2 only. Write the flash from the board, which
+  also enables the FPGA design, and how to go back; the same over JTAG.
 
 ## Order of work
 
@@ -124,7 +124,9 @@ All of this was developed on one board in November 2026.
 | Task B built by its script from a clean start | yes |
 | Task K built by its script, cross-compiled on x86 | yes |
 | Task F built by its script from a clean start | yes |
-| Task I's image built from those and booted, with nothing changed by hand afterwards | yes, on a board in stage 2 |
+| Task I's image as now built, booted with nothing changed by hand afterwards | not yet; the image before the flash write was added: yes, on a board in stage 2 |
 | Stage 2 on the board: boots with nothing typed; first-boot set-up, with the two optional files; network; fan; HDMI console | yes |
-| Stage 1: the image on a board with untouched factory flash contents | yes |
-| Writing the read-back file to return to the factory state | something slightly different: written from Linux, not over JTAG |
+| Stage 1: the image on a board with untouched factory flash contents | yes, with the image before the flash write was added |
+| Writing the flash from the board: `de25-fpga enable`, then U-Boot at the next boot | not yet; the same read, erase, write and compare typed at the U-Boot prompt: yes |
+| Going back with `de25-fpga restore` | not yet; the same write of the factory contents from Linux with `flashcp`: yes |
+| Writing the flash over JTAG | yes, many times; writing the read-back that way: not yet |

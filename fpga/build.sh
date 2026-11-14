@@ -4,7 +4,9 @@
 # Usage: fpga/build.sh
 # Output: out/fpga/fpga.rbf             the fabric, for the SD card
 #         out/fpga/fpga.dtbo            its device tree overlay, for the SD card
-#         out/fpga/de25-nano.hps.jic    the first-stage image, for the flash
+#         out/fpga/de25-nano.hps.rpd    the first-stage image, for the flash: raw bytes, as
+#                                       U-Boot writes it
+#         out/fpga/de25-nano.hps.jic    the same, as Altera's programmer writes it over JTAG
 # Needs: Docker, git, network access; out/u-boot/u-boot-spl-dtb.hex from Task B (for the
 #        last step only). The first run pulls the Quartus image (17.5 GiB).
 #
@@ -43,14 +45,22 @@ sof=$design/output_files/baseline_a55.sof
 # 3. Overlay: independent of the compile; it reads the video block's source.
 (cd "$top" && "$q" "$top/fpga/overlay/build.sh" "$out/fpga.dtbo")
 
-# 4. Combine with the first-stage loader from Task B. One command gives both files:
-#    de25-nano.hps.jic   first stage (the SoC's configuration and the loader), for the flash
+# 4. Combine with the first-stage loader from Task B. One command gives the files:
+#    de25-nano.hps.jic   first-stage image (the SoC's configuration and the loader), for the flash,
+#                        in the form Altera's programmer writes over JTAG
+#    de25-nano.rpd       the same flash contents as raw bytes (Raw Programming Data), from the
+#                        start of the flash to the end of the data; bitswap=on gives the
+#                        bytes as the flash holds them
 #    de25-nano.core.rbf  the fabric, loaded by U-Boot from the SD card
-# flash_loader names the FPGA as the programmer of Quartus 26.1.1 identifies this board's.
+# flash_loader names this board's FPGA as Quartus 26.1.1's programmer identifies it.
 spl=$top/out/u-boot/u-boot-spl-dtb.hex
 [ -f "$spl" ] || fail "no $spl: build Task B first (u-boot/build.sh)"
-(cd "$design" && mkdir -p out && "$q" quartus_pfg -c output_files/baseline_a55.sof out/de25-nano.jic \
-    -o device=MT25QU128 -o flash_loader=A5EB013BB23BCS -o hps_path="$spl" -o mode=ASX4 -o hps=1)
+(cd "$design" && mkdir -p out && "$q" quartus_pfg -c output_files/baseline_a55.sof out/de25-nano.jic out/de25-nano.rpd \
+    -o device=MT25QU128 -o flash_loader=A5EB013BB23BCS -o hps_path="$spl" -o mode=ASX4 -o hps=1 \
+    -o bitswap=on)
 cp "$design/out/de25-nano.core.rbf" "$out/fpga.rbf"
 cp "$design/out/de25-nano.hps.jic" "$out/de25-nano.hps.jic"
+cp "$design/out/de25-nano.rpd" "$out/de25-nano.hps.rpd"
+# U-Boot writes the flash in 4-byte words.
+[ $(( $(stat -c %s "$out/de25-nano.hps.rpd") % 4 )) -eq 0 ] || fail "the size of de25-nano.hps.rpd is not a multiple of 4"
 ls -l "$out"

@@ -1,56 +1,189 @@
 #!/bin/sh
-# de25-fpga: turn the loading of the FPGA design at boot on or off.
+# de25-fpga: turn the loading of the FPGA design at boot on or off, with the flash write a
+# board needs before it accepts the design.
 #
-#   de25-fpga enable    load the design from the next boot on
-#   de25-fpga disable   stop loading it
-#   de25-fpga status    say which it is
+#   de25-fpga enable [--force]          load the design from the next boot on; on a board
+#                                       whose flash is not yet written, write it at the next boot
+#   de25-fpga disable                   undo enable
+#   de25-fpga restore [--force] [FILE]  write saved flash contents back (default: Terasic's
+#                                       factory contents, as saved from this board)
+#   de25-fpga status                    say how things stand
 #
-# The design, fpga.rbf, and its device tree overlay, fpga.dtbo, are kept in /usr/lib/de25-nano.
-# U-Boot loads the design only if fpga.rbf is on the FAT partition (/boot/firmware), and the
-# boot menu names the overlay only if fpga.dtbo is in /boot/dtbo. "enable" puts both there;
-# "disable" removes both.
+# enable and restore ask before they change the flash; --force does it without asking.
 #
-# Enable it only on a board whose flash holds the first stage built with this design (stage
-# 2). A board with the factory flash contents refuses the design and then hangs at its next
-# restart until it is power cycled.
+# The design, fpga.rbf, its device tree overlay, fpga.dtbo, and the flash image the
+# design belongs to, hps-first.rpd, are kept in /usr/lib/de25-nano. U-Boot loads the design only if
+# fpga.rbf is on the FAT partition (/boot/firmware) and the flash holds a first-stage image that
+# hands the flash to the SoC; the boot menu names the overlay only if fpga.dtbo is in
+# /boot/dtbo. "enable" puts both there.
+#
+# A board with the factory flash contents does not accept the design, and Linux cannot write
+# its flash: the chip's Secure Device Manager (SDM) keeps the flash. On such a board "enable"
+# also leaves hps-first.rpd on the FAT partition as write-on-boot.rpd, with its crc32 in
+# write-on-boot.txt, and at the next boot U-Boot checks it and writes it through the SDM (the
+# boot script, boot.scr). U-Boot first saves what the flash
+# held, on the FAT partition, as saved-<crc32>.rpd. The LED beside the HPS KEY button shows
+# how the write is going.
 set -eu
 lib=/usr/lib/de25-nano
 fat=/boot/firmware
 dtbo=/boot/dtbo
+mtd=/dev/mtd0
+request=$fat/write-on-boot.rpd
+request_crc=$fat/write-on-boot.txt
+failed=$fat/write-on-boot-failed.txt
+factory_crc=f2447995          # crc32 of the flash as Terasic ships the board
+flash_bytes=16777216
 fail() { echo "de25-fpga: $*" >&2; exit 1; }
+usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
-case "${1:-}" in
+need_root() { [ "$(id -u)" = 0 ] || fail "run it as root (sudo de25-fpga $*)"; }
+need_fat() { mountpoint -q "$fat" || fail "$fat is not mounted"; }
+crc32_of() {    # crc32_of FILE: 8 hex digits, from the trailer gzip writes
+    gzip -1 -c "$1" | tail -c 8 | head -c 4 | od -An -tx4 | tr -d ' \n'
+}
+confirm() {     # confirm QUESTION: ask on the terminal, unless --force was given
+    [ "$force" = yes ] && return 0
+    printf '%s [y/N] ' "$1"
+    read -r answer || answer=
+    case $answer in y|Y|yes) ;; *) fail "nothing changed" ;; esac
+}
+
+cmd=${1:-}
+[ $# -gt 0 ] && shift
+force=no
+file=
+for arg in "$@"; do
+    case $arg in
+    --force) force=yes ;;
+    -*) usage ;;
+    *) [ "$cmd" = restore ] && [ -z "$file" ] || usage; file=$arg ;;
+    esac
+done
+
+case $cmd in
 enable)
+    need_root enable
     [ -f "$lib/fpga.rbf" ] && [ -f "$lib/fpga.dtbo" ] || fail "no fpga.rbf and fpga.dtbo in $lib"
-    mountpoint -q "$fat" || fail "$fat is not mounted"
-    # Linux has the flash only with the stage 2 flash contents (u-boot/README.md).
-    if [ ! -e /dev/mtd0 ] && [ "${2:-}" != --force ]; then
-        fail "this board's flash does not hold the stage 2 first stage (no /dev/mtd0).
-It would refuse the design and then hang at its next restart. Not enabled."
+    need_fat
+    if [ ! -e "$mtd" ]; then
+        # The SDM keeps the flash: it has to be written before the design can be loaded.
+        [ -f "$lib/hps-first.rpd" ] || fail "no hps-first.rpd in $lib"
+        size=$(stat -c %s "$lib/hps-first.rpd")
+        [ "$size" -gt 0 ] && [ "$size" -le $flash_bytes ] && [ $((size % 4)) -eq 0 ] ||
+            fail "$lib/hps-first.rpd has an unusable size ($size bytes)"
+        cat <<EOF
+This board's flash has to be written before it accepts the FPGA design.
+At the next boot U-Boot will save what the flash holds now to the card
+($fat/saved-<crc32>.rpd), then write the flash, which should take about two minutes.
+EOF
+        confirm "Write the flash at the next boot?"
+        write=yes
+    else
+        # Linux has the flash: no write through U-Boot is needed, and U-Boot would not do one.
+        write=no
     fi
+    rm -f "$failed" "$request" "$request.new" "$request_crc"
     cp "$lib/fpga.dtbo" "$dtbo/fpga.dtbo"
     cp "$lib/fpga.rbf" "$fat/fpga.rbf"
     u-boot-update >/dev/null
+    if [ "$write" = yes ]; then
+        # Last, so that U-Boot finds the request only when everything else is in place.
+        cp "$lib/hps-first.rpd" "$request.new"
+        cmp -s "$lib/hps-first.rpd" "$request.new" || fail "copying hps-first.rpd to $fat failed"
+        printf 'flash_new_crc=%s\n' "$(crc32_of "$lib/hps-first.rpd")" > "$request_crc"
+        sync
+        mv "$request.new" "$request"
+    fi
     sync
-    echo "The FPGA design will be loaded from the next boot on."
+    if [ -e "$request" ]; then
+        cat <<EOF
+The flash will be written at the next boot. Reboot when ready (sudo reboot), then watch
+the LED beside the HPS KEY button:
+  one second on, one second off   working: leave the power alone
+  steady on                       done: unplug the power and the USB-C cable, then plug both in again
+  four times a second             it failed: the serial console says why
+After the power cycle the board boots with the FPGA design loaded.
+EOF
+    else
+        echo "The FPGA design will be loaded from the next boot on."
+    fi
     ;;
 disable)
-    rm -f "$fat/fpga.rbf" "$dtbo/fpga.dtbo"
+    need_root disable
+    need_fat
+    rm -f "$fat/fpga.rbf" "$dtbo/fpga.dtbo" "$request" "$request.new" "$request_crc" "$failed"
     u-boot-update >/dev/null
     sync
-    echo "The FPGA design will not be loaded from the next boot on."
+    echo "The FPGA design will not be loaded from the next boot on, and no flash write is waiting."
+    ;;
+restore)
+    need_root restore
+    need_fat
+    [ -e "$mtd" ] || fail "Linux has no access to this board's flash (no $mtd).
+That is so with the factory flash contents: there is nothing to restore."
+    [ -n "$file" ] || file=$fat/saved-$factory_crc.rpd
+    [ -f "$file" ] || fail "no $file. Name the file to write: de25-fpga restore FILE"
+    size=$(stat -c %s "$file")
+    [ "$size" -eq $flash_bytes ] || fail "$file is $size bytes; saved flash contents are $flash_bytes"
+    [ "$(cat /sys/class/mtd/mtd0/size)" = $flash_bytes ] || fail "$mtd is not the whole $flash_bytes-byte flash"
+    crc=$(crc32_of "$file")
+    case ${file##*/} in
+    saved-????????.rpd)
+        [ "${file##*/}" = "saved-$crc.rpd" ] || fail "$file does not hold what its name says: its crc32 is $crc"
+        ;;
+    esac
+    echo "$file: crc32 $crc"
+    echo "This writes $file to the board's flash and stops the FPGA design being loaded."
+    confirm "Write the flash now?"
+    rm -f "$fat/fpga.rbf" "$dtbo/fpga.dtbo" "$request" "$request.new" "$request_crc" "$failed"
+    u-boot-update >/dev/null
+    sync
+    /usr/sbin/flashcp -v "$file" "$mtd"
+    cat <<EOF
+The flash is written and verified. The chip takes up the new contents only at power-on:
+shut down (sudo systemctl halt), then unplug the board's power and its USB-C cable and plug
+both in again.
+Do not restart without the power cycle.
+EOF
     ;;
 status)
     if [ -f "$fat/fpga.rbf" ] && [ -f "$dtbo/fpga.dtbo" ]; then
-        echo enabled
+        echo "FPGA design: enabled"
     elif [ -f "$fat/fpga.rbf" ] || [ -f "$dtbo/fpga.dtbo" ]; then
-        echo "half enabled: run de25-fpga enable or de25-fpga disable"
+        echo "FPGA design: half enabled: run de25-fpga enable or de25-fpga disable"
     else
-        echo disabled
+        echo "FPGA design: disabled"
     fi
+    if [ ! -e "$mtd" ]; then
+        echo "Flash: kept by the SDM, as with the factory contents; it has to be written before the design loads"
+    elif [ ! -f "$lib/hps-first.rpd" ]; then
+        echo "Flash: handed to the SoC ($mtd)"
+    elif [ ! -r "$mtd" ]; then
+        echo "Flash: handed to the SoC ($mtd); run status as root to compare it with $lib/hps-first.rpd"
+    elif cmp -s -n "$(stat -c %s "$lib/hps-first.rpd")" "$mtd" "$lib/hps-first.rpd"; then
+        echo "Flash: holds $lib/hps-first.rpd"
+    else
+        echo "Flash: handed to the SoC ($mtd); its contents differ from $lib/hps-first.rpd"
+    fi
+    if [ -f "$request" ] && [ -e "$mtd" ]; then
+        echo "Flash write: $request is on the card, but U-Boot writes the flash only when the SDM keeps it; de25-fpga enable or disable removes the file"
+    elif [ -f "$request" ]; then
+        echo "Flash write: waiting for the next boot"
+    elif [ -f "$failed" ]; then
+        echo "Flash write: the last one failed while $(tr -d '\000' < "$failed" | sed -n 's/^failed_while=//p')"
+    else
+        echo "Flash write: none waiting"
+    fi
+    for f in "$fat"/saved-????????.rpd; do
+        [ -f "$f" ] || continue
+        case $f in
+        */saved-$factory_crc.rpd) echo "Saved flash contents: $f (Terasic's factory contents)" ;;
+        *) echo "Saved flash contents: $f" ;;
+        esac
+    done
     ;;
 *)
-    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//' >&2
-    exit 2
+    usage
     ;;
 esac

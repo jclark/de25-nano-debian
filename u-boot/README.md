@@ -66,7 +66,10 @@ its own toolchain name and the loader came out a different size.
 - Four more options in the fragment, `CONFIG_LED`, `CONFIG_LED_GPIO`, `CONFIG_LED_BLINK` and
   `CONFIG_LED_SW_BLINK`, give the `led` command for the one LED wired to the SoC (`HPS_LED`
   on the board, `hps_led0` in the device tree): `led hps_led0 on`, `off`, or
-  `blink <milliseconds per cycle>`. It keeps blinking while `sdmflash` works.
+  `blink <milliseconds per cycle>`. `sdmflash` gives U-Boot's
+  scheduler a turn between its commands to the SDM, so that the blinking goes on while it works.
+- `CONFIG_CMD_HASH=y` in the fragment gives the `hash` command, with which the boot script
+  names the saved flash contents by their crc32.
 
 Why Terasic's U-Boot and not mainline U-Boot: the first-stage loader of a factory board is
 built from this source at this commit (the loader built here is the same as Terasic's prebuilt
@@ -86,7 +89,8 @@ directory. A few minutes.
 Check the result:
 
 - `out/u-boot/u-boot.itb` is about 1 MB and `out/u-boot/u-boot-spl-dtb.hex` about 0.7 MB.
-- The script itself checks that the options from the fragment are in the final configuration.
+- The script itself checks that `CONFIG_OF_LIBFDT_OVERLAY`, `CONFIG_OF_BOARD_SETUP`,
+  `CONFIG_LED_SW_BLINK`, `CONFIG_CMD_LED` and `CONFIG_CMD_HASH` are in the final configuration.
 - On the board, U-Boot's first line on the serial console shows the build date of this build:
   `U-Boot 2025.01-gd0f8813fd6bf-dirty (<date>)`; "dirty" because of the patch.
 
@@ -97,10 +101,13 @@ Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts
 short:
 
 1. U-Boot's stock boot command scans the partitions marked bootable.
-2. On partition 1 (FAT) it finds the script `boot.scr` and runs it. The script names the
-   device tree file, gives the address and size limit for unpacking a compressed kernel, and,
-   if `fpga.rbf` is on the partition, loads the FPGA design; if that succeeds it also sets the
-   address overlays are loaded to. Then it returns; U-Boot prints
+2. On partition 1 (FAT) it finds the script `boot.scr` and runs it. If a flash write is
+   waiting and the SDM keeps the flash, the script does the write and stops there until the
+   power is unplugged ([how-it-works.md](../how-it-works.md#writing-the-flash)). Otherwise it
+   names the device tree file, gives the address and size limit for unpacking a compressed
+   kernel, and, if `fpga.rbf` is on the partition and the SDM has handed the flash over,
+   loads the FPGA design; if that succeeds it also sets the address overlays are loaded to.
+   Then it returns; U-Boot prints
    `SCRIPT FAILED: continuing...`, which is what it prints whenever a script returns.
 3. On partition 2 (ext4) it finds the boot menu `/boot/extlinux/extlinux.conf`, which names
    the kernel, the directory with that kernel's device tree, and the overlay. U-Boot applies

@@ -49,7 +49,7 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     make -j"$jobs"
 '
 cp "$work/u-boot-socfpga/u-boot.itb" "$work/u-boot-socfpga/spl/u-boot-spl-dtb.hex" "$out/"
-for opt in CONFIG_OF_LIBFDT_OVERLAY CONFIG_OF_BOARD_SETUP CONFIG_LED_SW_BLINK CONFIG_CMD_LED; do
+for opt in CONFIG_OF_LIBFDT_OVERLAY CONFIG_OF_BOARD_SETUP CONFIG_LED_SW_BLINK CONFIG_CMD_LED CONFIG_CMD_HASH; do
     grep -q "^$opt=y" "$work/u-boot-socfpga/.config" || {
         echo "u-boot/build.sh: the config fragment did not take effect ($opt)" >&2; exit 1; }
 done

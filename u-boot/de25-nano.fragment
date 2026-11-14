@@ -13,3 +13,5 @@ CONFIG_LED=y
 CONFIG_LED_GPIO=y
 CONFIG_LED_BLINK=y
 CONFIG_LED_SW_BLINK=y
+# The "hash" command: the boot script names the saved flash contents by their crc32
+CONFIG_CMD_HASH=y

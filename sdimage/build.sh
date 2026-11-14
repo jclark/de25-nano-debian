@@ -4,7 +4,8 @@
 # Usage: sdimage/build.sh
 # Output: out/sdimage/de25-nano.img          the complete image, for any board
 #     or: out/sdimage/de25-nano-nofpga.img   when Task F has not been built: the same image
-#                                            without the FPGA design and its overlay
+#                                            without the FPGA design, its overlay and the
+#                                            first-stage image
 # Needs: out/u-boot and out/kernel (Tasks B and K), and out/fpga (Task F) for the complete image.
 #        Docker; on a host that is not arm64, qemu-user binfmt for aarch64.
 #
@@ -27,7 +28,9 @@ deb=$(ls "$top"/out/kernel/linux-image-*_arm64.deb 2>/dev/null | head -n 1)
 cp "$top/out/u-boot/u-boot.itb" "$deb" "$in/"
 name=de25-nano.img
 if [ -f "$top/out/fpga/fpga.rbf" ] && [ -f "$top/out/fpga/fpga.dtbo" ]; then
+    need "$top/out/fpga/de25-nano.hps.rpd" "Task F (fpga/build.sh)"
     cp "$top/out/fpga/fpga.rbf" "$top/out/fpga/fpga.dtbo" "$in/"
+    cp "$top/out/fpga/de25-nano.hps.rpd" "$in/hps-first.rpd"
 else
     name=de25-nano-nofpga.img
     echo "sdimage/build.sh: no out/fpga/fpga.rbf and fpga.dtbo (Task F): building $name"

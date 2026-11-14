@@ -3,9 +3,9 @@
 Needs: the image from Task I ([sdimage/README.md](sdimage/README.md)), a microSD card of 4 GB or
 more, the board's USB-C cable.
 
-The same image is for a board with the factory flash contents (stage 1) and for one whose
-flash has been written ([install-flash.md](install-flash.md), stage 2). For stage 2 the FPGA
-design is then enabled on the board (step 6 of that page).
+The same image serves both stages: stage 1, with the factory flash contents, and stage 2,
+after the flash has been written from the board with `sudo de25-fpga enable`, a reboot and a
+power cycle ([install-flash.md](install-flash.md)).
 
 ## Write the card
 

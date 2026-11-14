@@ -12,7 +12,7 @@ index db3872a6..13aa8ccc 100644
  
  &nand {
 diff --git a/arch/arm/mach-socfpga/misc_soc64.c b/arch/arm/mach-socfpga/misc_soc64.c
-index 26ba9727..9547545c 100644
+index 26ba9727..52390af8 100644
 --- a/arch/arm/mach-socfpga/misc_soc64.c
 +++ b/arch/arm/mach-socfpga/misc_soc64.c
 @@ -130,6 +130,145 @@ int arch_misc_init(void)
@@ -91,7 +91,7 @@ index 26ba9727..9547545c 100644
 +	if (!strcmp(argv[1], "erase") && argc == 4) {
 +		addr = hextoul(argv[2], NULL);
 +		len = hextoul(argv[3], NULL);
-+		if ((addr | len) & 0xffff)
++		if (!len || ((addr | len) & 0xffff))
 +			return CMD_RET_USAGE;
 +		ret = sdm_qspi_begin();
 +		while (!ret && done < len) {
@@ -114,7 +114,7 @@ index 26ba9727..9547545c 100644
 +		addr = hextoul(argv[2], NULL);
 +		mem = (u32 *)hextoul(argv[3], NULL);
 +		len = hextoul(argv[4], NULL);
-+		if ((addr | len) & 3)
++		if (!len || ((addr | len) & 3))
 +			return CMD_RET_USAGE;
 +		ret = sdm_qspi_begin();
 +		while (!ret && done < len) {

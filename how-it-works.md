@@ -7,11 +7,12 @@ provided through the FPGA.
 
 ### Storage layout
 
-**QSPI flash, on the board.** The first stage: the configuration of the SoC (the chip's ARM
+**QSPI flash, on the board.** The first-stage image: the configuration of the SoC (the chip's ARM
 CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
 
 - Stage 1: the factory contents, which also hold Terasic's FPGA design.
-- Stage 2: `de25-nano.hps.jic`, and no FPGA design. Written once, over JTAG.
+- Stage 2: the first-stage image from Task F (`de25-nano.hps.rpd`), and no FPGA design.
+  Written once, by U-Boot from the card, or over JTAG ([install-flash.md](install-flash.md)).
 
 **SD card, partition 1.** FAT, 64 MB, mounted at `/boot/firmware`.
 
@@ -21,6 +22,9 @@ CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
 | `boot.scr` | The U-Boot script |
 | `uboot.env` | U-Boot's saved settings, if any have been saved |
 | `fpga.rbf` | The FPGA design; there only after `de25-fpga enable` (stage 2) |
+| `write-on-boot.rpd`, `write-on-boot.txt` | The new flash contents and their crc32; there only between `de25-fpga enable` and the boot that writes the flash |
+| `saved-<crc32>.rpd` | What the flash held before U-Boot wrote it, the whole 16 MiB, named by its crc32 (`saved-f2447995.rpd`: Terasic's factory contents) |
+| `write-on-boot-failed.txt` | There only if the last flash write failed: the step it failed in, for `de25-fpga status` |
 
 **SD card, partition 2.** ext4, the rest of the card, mounted at `/`: Debian.
 
@@ -30,6 +34,7 @@ CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
 | `/usr/lib/linux-image-<release>/intel/socfpga_agilex5_de25_nano.dtb` | The kernel's device tree for the board, from the kernel package |
 | `/boot/extlinux/extlinux.conf` | The boot menu, written by Debian's `u-boot-update` from `/etc/default/u-boot` |
 | `/usr/lib/de25-nano/fpga.rbf`, `fpga.dtbo` | The FPGA design and its device tree overlay, as the image supplies them; the boot does not look here |
+| `/usr/lib/de25-nano/hps-first.rpd` | The first-stage image for the flash, as the image supplies it |
 | `/boot/dtbo/fpga.dtbo` | The overlay; there only after `de25-fpga enable` (stage 2) |
 
 ### Boot sequence
@@ -38,12 +43,15 @@ CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
    from the flash. With the factory flash contents it configures the FPGA from the flash first.
 2. The loader sets up the memory and loads `u-boot.itb` from partition 1. TF-A starts, then
    U-Boot.
-3. U-Boot scans the bootable partitions. On partition 1 it runs `boot.scr`. The script sets
-   three things U-Boot's own configuration for this board lacks: the name of the device tree
-   file, the address overlays are loaded to, and the address and size limit for unpacking a
-   compressed kernel. If `fpga.rbf` is on partition 1, it also loads it into the FPGA. The
-   file is put there by `de25-fpga enable`, in stage 2: a board with the factory flash
-   contents does not accept the design.
+3. U-Boot scans the bootable partitions. On partition 1 it runs `boot.scr`. If a flash write
+   is waiting (`write-on-boot.rpd` on partition 1) and the SDM keeps the flash, the script
+   writes the flash and goes no further ([Writing the flash](#writing-the-flash)). Otherwise
+   it sets three things U-Boot's own configuration for this board lacks: the name of the
+   device tree file, the address overlays are loaded to, and the address and size limit for
+   unpacking a compressed kernel. If `fpga.rbf` is on partition 1 and the flash holds the
+   stage 2 first-stage image, it also loads the file into the FPGA. `de25-fpga enable` puts
+   the file there; a board with the factory flash contents does not accept the design, and
+   the script does not offer it.
 4. On partition 2 it reads the boot menu. The menu has an entry for each installed kernel; the
    first, the newest, is the default. From the entry U-Boot loads the kernel, the device tree
    from that kernel's own directory and, if the FPGA design loaded, the overlay, which it
@@ -63,6 +71,30 @@ The addresses, all in the board's 1 GB of RAM, which starts at 0x80000000:
 | 0x87000000 | Each overlay, while it is applied | `boot.scr` (`fdtoverlay_addr_r`) |
 | 0x90000000 | The kernel is unpacked here first | `boot.scr` (`kernel_comp_addr_r`; `kernel_comp_size` limits the compressed kernel to 32 MB) |
 | 0xBF000000 | The HDMI frame buffer, 8 MB, in stage 2 | The FPGA design and its overlay |
+
+### Writing the flash
+
+The flash belongs to the chip's Secure Device Manager (SDM), the part of the chip that
+configures it at power-on. Whether the SoC gets direct access is a setting of the design in
+the flash. The stage 2 first-stage image hands the flash over, and Linux then has it as
+`/dev/mtd0`. Terasic's factory contents do not: there, neither U-Boot's flash driver nor
+Linux can reach it. The SDM's own commands for reading, erasing and writing the flash work
+all the same, and U-Boot can send them. That is how a factory board's flash is written
+without JTAG.
+
+| Part | Where it is | What it does |
+|---|---|---|
+| `sdmflash` | A U-Boot command, added by `u-boot/qspi-flash.patch` | Reads, erases and writes the flash through the SDM |
+| `hps-first.rpd` | `/usr/lib/de25-nano` in the Debian image, from Task F | The new flash contents as raw bytes, from the start of the flash to the end of the data (about 2.5 MB of the 16 MiB) |
+| `de25-fpga enable` | In the Debian image, `/usr/local/sbin` | On a board where Linux has no `/dev/mtd0`: puts the FPGA design in place, then copies `hps-first.rpd` to the FAT partition as `write-on-boot.rpd`, with its crc32 in `write-on-boot.txt` |
+| `boot.scr` | The FAT partition | When `write-on-boot.rpd` is there and the SDM has kept the flash: checks the file's size and crc32 and removes it; reads the whole flash, saves it as `saved-<crc32>.rpd` unless that file is already there, and reads the save back from the card; only then erases, writes, reads back and compares; and stays there. On failure it records the failing step in `write-on-boot-failed.txt`. |
+| `HPS_LED` | The one LED wired to the SoC | Shows progress: slow blinking while working, steady on when done, fast blinking on failure |
+| `de25-fpga restore` | In the Debian image | Writes a `saved-<crc32>.rpd` back from Linux through `/dev/mtd0` |
+
+The chip takes up new flash contents only at power-on, so a power cycle follows the write.
+The script tells from U-Boot's variable `qspi_clock` whether the SDM kept the flash: the
+first-stage loader records the flash controller's clock rate when it is given the flash, and
+the variable is zero when it was not.
 
 ## Stage 2 features
 

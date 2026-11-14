@@ -6,6 +6,7 @@ flowchart LR
   s1(["tcl/, top-level.patch,<br/>src/hdmi_scanout.sv"]) --> ap
   ap --> d[/"the applied design"/] --> q["Compile<br/>Quartus"] --> sof[/".sof"/] --> pfg["Combine<br/>Quartus"]
   spl[/"u-boot-spl-dtb.hex<br/>from Task B"/] --> pfg
+  pfg --> rpd[/"de25-nano.hps.rpd"/]
   pfg --> jic[/"de25-nano.hps.jic"/]
   pfg --> rbf[/"fpga.rbf"/]
   s2(["overlay/ template"]) --> dtc["Build the overlay<br/>dtc"] --> dtbo[/"fpga.dtbo"/]
@@ -18,10 +19,11 @@ flowchart LR
 |---|---|---|---|
 | `out/fpga/fpga.rbf` | The fabric: the logic in the FPGA | `/usr/lib/de25-nano/` on the card, by Task I. `de25-fpga enable` copies it to the FAT partition, and U-Boot then loads it at every boot. | the logic changes |
 | `out/fpga/fpga.dtbo` | The device tree overlay: what Linux must be told when the fabric is loaded | `/usr/lib/de25-nano/` on the card, by Task I. `de25-fpga enable` copies it to `/boot/dtbo/`. Goes with `fpga.rbf`: both or neither. | the fabric's interface to Linux changes |
-| `out/fpga/de25-nano.hps.jic` | The first-stage image: the SoC's configuration (its pins and memory, and which of its peripherals are routed to the FPGA) and the first-stage loader | The board's QSPI flash, written once over JTAG ([install-flash.md](../install-flash.md)) | the SoC's configuration or the loader changes; not when only the logic changes |
+| `out/fpga/de25-nano.hps.rpd` | The first-stage image: the SoC's configuration (its pins and memory, and which of its peripherals are routed to the FPGA) and the first-stage loader. Raw bytes as the flash holds them (Altera's Raw Programming Data), from the start of the flash to the end of the data. | `/usr/lib/de25-nano/hps-first.rpd` on the card, by Task I. `de25-fpga enable` has U-Boot write it to the board's QSPI flash, once ([install-flash.md](../install-flash.md)). | the SoC's configuration or the loader changes; not when only the logic changes |
+| `out/fpga/de25-nano.hps.jic` | The same flash contents in the form Altera's programmer takes | Only for writing the flash over JTAG ([install-flash.md](../install-flash.md)) | with the `.rpd` |
 
-`fpga.rbf` and the `.jic` belong together: a fabric is refused by a board whose flash holds a
-first stage from a different design.
+`fpga.rbf` and the first-stage image belong together: a fabric is refused by a board whose flash holds a
+first-stage image from a different design.
 
 What the fabric gives Linux:
 
@@ -131,7 +133,8 @@ Makefile does not notice changed sources.
 
 Check the result:
 
-- `out/fpga/fpga.rbf` is about 1.9 MB, `out/fpga/de25-nano.hps.jic` about 16.8 MB.
+- `out/fpga/fpga.rbf` is about 1.9 MB, `out/fpga/de25-nano.hps.rpd` about 2.5 MB,
+  `out/fpga/de25-nano.hps.jic` about 16.8 MB.
 - The compile's log ends its timing analysis with `Timing requirements were met`.
 - On the board (stage 2, with the FPGA design enabled): U-Boot prints
   `FPGA reconfiguration OK!`; Linux has `/dev/ttyS1`, a `simple-framebuffer` line in `dmesg`,

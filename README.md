@@ -33,11 +33,9 @@ supervision.
   device refused the signal; a monitor and another capture device accept it.
 - The board stores no Ethernet address. The first boot of a card makes one up and keeps it, so
   the address belongs to the card, not the board.
-- U-Boot and TF-A are built from Terasic's repositories: TF-A unchanged, U-Boot with one
-  small patch and two configuration options. The first-stage loader in the factory flash was
+- U-Boot and TF-A are built from Terasic's repositories: TF-A unchanged, U-Boot with a patch
+  and a few configuration options ([u-boot/README.md](u-boot/README.md)). The first-stage loader in the factory flash was
   built from the same source, which is why this U-Boot works on a factory board.
-- Writing a board's flash for the first time needs JTAG and Altera's programmer. After that,
-  Linux can write it.
 
 ## Where the parts come from
 
