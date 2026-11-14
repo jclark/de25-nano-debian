@@ -36,8 +36,8 @@ sudo reboot
 U-Boot then does the work, which should take about two minutes:
 
 - it checks the new contents against their crc32;
-- it saves what the flash holds to the card's FAT partition, as `saved-<crc32>.rpd`, and
-  reads the file back; for a board as Terasic ships it that is `saved-f2447995.rpd`;
+- it saves what the flash holds to the card's FAT partition, as `saved-<crc32>.rpd`, named
+  by the crc32 of its contents, and reads the file back;
 - it erases the flash, writes the new contents, reads them back and compares.
 
 The LED to watch is `HPS_LED`: the single LED beside the two small push-buttons marked
@@ -61,9 +61,8 @@ up new flash contents only at power-on.
 The board boots with the FPGA design loaded: U-Boot prints `FPGA reconfiguration OK!` and
 applies the device tree overlay, and the header signals, the fan control and HDMI are there.
 
-`sudo de25-fpga status` says how things stand at any time. Copy `saved-f2447995.rpd`, or
-whichever `saved-<crc32>.rpd` is on the card, from the FAT partition to another computer as
-well.
+`sudo de25-fpga status` says how things stand at any time. Copy `saved-<crc32>.rpd` from
+the FAT partition to another computer as well.
 
 ### If it failed
 
@@ -82,9 +81,10 @@ sudo de25-fpga restore
 sudo systemctl halt
 ```
 
-`restore` stops the FPGA design being loaded and writes `saved-f2447995.rpd` back
-(`sudo de25-fpga restore FILE` for a file kept elsewhere). Then power cycle as in step 3. The
-board boots the same card in stage 1.
+`restore` stops the FPGA design being loaded and writes the saved `.rpd` file on the card
+back to the flash. If the card holds none, or more than one, the file has to be named:
+`sudo de25-fpga restore FILE`. Then power cycle as in step 3. The board boots the same card
+in stage 1.
 
 ## Over JTAG
 

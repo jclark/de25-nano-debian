@@ -23,7 +23,7 @@ CPU and its peripherals, which Altera calls the HPS) and the first-stage loader.
 | `uboot.env` | U-Boot's saved settings, if any have been saved |
 | `fpga.rbf` | The FPGA design; there only after `de25-fpga enable` (stage 2) |
 | `write-on-boot.rpd`, `write-on-boot.txt` | The new flash contents and their crc32; there only between `de25-fpga enable` and the boot that writes the flash |
-| `saved-<crc32>.rpd` | What the flash held before U-Boot wrote it, the whole 16 MiB, named by its crc32 (`saved-f2447995.rpd`: Terasic's factory contents) |
+| `saved-<crc32>.rpd` | What the flash held before U-Boot wrote it, the whole 16 MiB, named by its crc32 |
 | `write-on-boot-failed.txt` | There only if the last flash write failed: the step it failed in, for `de25-fpga status` |
 
 **SD card, partition 2.** ext4, the rest of the card, mounted at `/`: Debian.

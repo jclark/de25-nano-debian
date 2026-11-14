@@ -9,9 +9,8 @@ fpga.rbf     The FPGA design. Not here on a new card: "sudo de25-fpga enable" on
 write-on-boot.rpd         New flash contents and their crc32, put here by
 write-on-boot.txt         "sudo de25-fpga enable". U-Boot writes the contents to the flash at
                           the next boot and removes both files.
-saved-<crc32>.rpd         What the flash held before U-Boot wrote it (saved-f2447995.rpd:
-                          Terasic's factory contents). Keep a copy elsewhere;
-                          "sudo de25-fpga restore" writes it back.
+saved-<crc32>.rpd         What the flash held before U-Boot wrote it, named by its crc32.
+                          Keep a copy elsewhere; "sudo de25-fpga restore" writes it back.
 write-on-boot-failed.txt  Written by U-Boot if the flash write failed: the step it failed in.
 
 Before the first boot of this card you may add two files here. They are read once, at the

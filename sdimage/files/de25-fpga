@@ -5,8 +5,8 @@
 #   de25-fpga enable [--force]          load the design from the next boot on; on a board
 #                                       whose flash is not yet written, write it at the next boot
 #   de25-fpga disable                   undo enable
-#   de25-fpga restore [--force] [FILE]  write saved flash contents back (default: Terasic's
-#                                       factory contents, as saved from this board)
+#   de25-fpga restore [--force] [FILE]  write saved flash contents back (default: the saved
+#                                       file on the card, if there is exactly one)
 #   de25-fpga status                    say how things stand
 #
 # enable and restore ask before they change the flash; --force does it without asking.
@@ -32,7 +32,6 @@ mtd=/dev/mtd0
 request=$fat/write-on-boot.rpd
 request_crc=$fat/write-on-boot.txt
 failed=$fat/write-on-boot-failed.txt
-factory_crc=f2447995          # crc32 of the flash as Terasic ships the board
 flash_bytes=16777216
 fail() { echo "de25-fpga: $*" >&2; exit 1; }
 usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
@@ -122,8 +121,19 @@ restore)
     need_fat
     [ -e "$mtd" ] || fail "Linux has no access to this board's flash (no $mtd).
 That is so with the factory flash contents: there is nothing to restore."
-    [ -n "$file" ] || file=$fat/saved-$factory_crc.rpd
-    [ -f "$file" ] || fail "no $file. Name the file to write: de25-fpga restore FILE"
+    if [ -z "$file" ]; then
+        # The saved file on the card, if there is exactly one.
+        n=0
+        for f in "$fat"/saved-????????.rpd; do
+            [ -f "$f" ] || continue
+            n=$((n + 1)); file=$f
+        done
+        [ "$n" -ne 0 ] || fail "no saved flash contents ($fat/saved-<crc32>.rpd).
+You must specify a file name: de25-fpga restore FILE"
+        [ "$n" -eq 1 ] || fail "there are $n saved files in $fat.
+You must specify a file name: de25-fpga restore FILE"
+    fi
+    [ -f "$file" ] || fail "no $file"
     size=$(stat -c %s "$file")
     [ "$size" -eq $flash_bytes ] || fail "$file is $size bytes; saved flash contents are $flash_bytes"
     [ "$(cat /sys/class/mtd/mtd0/size)" = $flash_bytes ] || fail "$mtd is not the whole $flash_bytes-byte flash"
@@ -177,10 +187,7 @@ status)
     fi
     for f in "$fat"/saved-????????.rpd; do
         [ -f "$f" ] || continue
-        case $f in
-        */saved-$factory_crc.rpd) echo "Saved flash contents: $f (Terasic's factory contents)" ;;
-        *) echo "Saved flash contents: $f" ;;
-        esac
+        echo "Saved flash contents: $f"
     done
     ;;
 *)
