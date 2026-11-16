@@ -1,6 +1,9 @@
+# Used by fpga/q only when this machine has no Quartus Pro of the version in
+# fpga/QUARTUS_VERSION and Altera has published an image for it (it has up to 26.1.1).
 # Altera's Quartus Pro image plus what the reference design's Makefile and the
 # licence fetch need (the base image has no CA certificates, make or git).
-FROM alterafpga/quartus-pro:26.1.1-agilex5
+ARG VERSION
+FROM alterafpga/quartus-pro:${VERSION}-agilex5
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates make git zip unzip python3 cmake curl file strace \
     && rm -rf /var/lib/apt/lists/*

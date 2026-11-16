@@ -1,32 +1,60 @@
 #!/bin/sh
-# Run a command in the Quartus Pro container, in the current directory.
+# Run a command with Quartus Pro on the PATH, in the current directory.
 #
-# Usage: fpga/q [--usb] COMMAND [ARGS...]
+# Usage: fpga/q COMMAND [ARGS...]
 #   fpga/q quartus_sh --version
-#   fpga/q --usb jtagconfig -n          --usb: with the board's USB-C cable, for JTAG
+#   fpga/q jtagconfig -n
 #
-# The container image is Altera's Quartus Pro image from Docker Hub plus a few tools
-# (fpga/quartus/Dockerfile). The first use pulls 17.5 GiB.
+# The version wanted is in fpga/QUARTUS_VERSION. A core image loads only on an HPS image made
+# with the same Quartus version, so the version is part of the design, not a preference.
 #
-# The whole repository is visible in the container at the same path. So is the current
-# directory when it is somewhere else (a clone of the design, for apply.sh), and every
-# directory named in DE25_Q_MOUNTS.
+# Quartus is looked for on this machine: in the directory named by DE25_QUARTUS, then where
+# Altera's installer puts it, ~/altera/<version> and /opt/altera/<version>, then on the PATH.
+# The directory is the one that holds quartus/, qsys/ and niosv/. The installation needs the
+# Agilex 5 device support and RiscFree, for the firmware of the design's self-test processor.
 #
-# Quartus keeps its licence in work/quartus-home: it fetches a free licence for this FPGA
-# family over HTTPS the first time the fitter runs. The licence is tied to a network card's
-# address, hence --net=host.
+# If none is found, a container is tried: Altera's image for that version from Docker Hub,
+# with the tools of fpga/quartus/Dockerfile added. Altera has published images up to 26.1.1
+# and none for 26.3, so for 26.3 this fails and says so. In the container the whole
+# repository is visible at the same path, and so are the current directory and the
+# directories named in DE25_Q_MOUNTS (separated by spaces).
 #
-# --usb runs as root with --privileged and /dev/bus/usb, which the USB programming cable needs;
-# files it writes belong to root.
+# Quartus fetches its licence by itself the first time the fitter runs: this FPGA family is
+# free but licensed.
 # shellcheck disable=SC2086
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
+version=$(cat "$top/fpga/QUARTUS_VERSION")
+fail() { echo "fpga/q: $*" >&2; exit 1; }
+[ $# -gt 0 ] || { sed -n '2,22p' "$0"; exit 2; }
+[ "$1" != --usb ] || shift      # once needed for JTAG from the container; accepted and ignored
+
+is_version() {   # is_version DIR: DIR holds Quartus of the version wanted
+    [ -x "$1/quartus/bin/quartus_sh" ] &&
+        "$1/quartus/bin/quartus_sh" --version 2>/dev/null | grep -q "^Version $version[. ]"
+}
+root=
+for d in "${DE25_QUARTUS:-}" "$HOME/altera/$version" "/opt/altera/$version" "$HOME/altera_pro/$version" \
+         "$(dirname "$(dirname "$(dirname "$(command -v quartus_sh 2>/dev/null || echo /x/x/x/x)")")")"; do
+    [ -n "$d" ] || continue
+    if is_version "$d"; then root=$d; break; fi
+done
+if [ -n "$root" ]; then
+    QUARTUS_ROOTDIR=$root/quartus
+    PATH=$root/quartus/bin:$root/qsys/bin:$root/niosv/bin:$PATH
+    export QUARTUS_ROOTDIR PATH
+    exec "$@"
+fi
+[ -z "${DE25_QUARTUS:-}" ] || fail "DE25_QUARTUS=$DE25_QUARTUS does not hold Quartus Pro $version"
+
+# No installation: a container, if Altera has an image for this version.
+command -v docker >/dev/null || fail "no Quartus Pro $version on this machine (set DE25_QUARTUS to its directory), and no Docker"
+docker build -q -t "de25-nano-quartus:$version" --build-arg "VERSION=$version" "$top/fpga/quartus" >/dev/null 2>&1 ||
+    fail "no Quartus Pro $version on this machine, and no container image for it could be built.
+Install Quartus Pro $version with Agilex 5 device support and RiscFree (fpga/README.md,
+\"Tools to download\"), in ~/altera/$version or with DE25_QUARTUS set to its directory."
 qhome=$top/work/quartus-home
 mkdir -p "$qhome"
-docker build -q -t de25-nano-quartus "$top/fpga/quartus" >/dev/null
-# The current directory, when it is outside the repository: mount the top of its git
-# repository, or the directory itself. So are the directories named in DE25_Q_MOUNTS
-# (separated by spaces; fpga/build.sh sets it for a design outside the repository).
 extra=
 case $PWD/ in
     "$top"/*) ;;
@@ -38,10 +66,6 @@ for d in ${DE25_Q_MOUNTS:-}; do
         *) extra="$extra -v $d:$d" ;;
     esac
 done
-if [ "${1:-}" = --usb ]; then
-    shift
-    exec docker run --rm --net=host --privileged -v /dev/bus/usb:/dev/bus/usb \
-        -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" $extra -w "$PWD" de25-nano-quartus "$@"
-fi
+# --net=host: the licence is tied to a network card's address.
 exec docker run --rm --net=host --user "$(id -u):$(id -g)" \
-    -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" $extra -w "$PWD" de25-nano-quartus "$@"
+    -e HOME=/qhome -v "$qhome":/qhome -v "$top":"$top" $extra -w "$PWD" "de25-nano-quartus:$version" "$@"

@@ -20,11 +20,12 @@ before are on the card, in the `saved-` file on the `FIRMWARE` drive.
 
 ## Writing with Altera's programmer
 
-This needs the FPGA design built from source ([build.md](build.md)), which provides the
-Quartus container and the file to write, `out/fpga/base/hps.jic`. (A release also carries
-that file, but writing it needs the Quartus container all the same.) Connect the board's
-USB-C cable to the machine with the container, and power the board. Run the commands from
-the top of the repository.
+This needs Quartus Pro on a PC, as for building the FPGA design ([build.md](build.md)), and
+the file to write: `out/fpga/base/hps.jic` from a build, or the `.hps.jic` file of a release.
+Connect the board's USB-C cable to that machine, and power the board. Run the commands from
+the top of the repository; `fpga/q` puts Quartus's programs on the path. The user needs
+permission to use the board's USB device (Altera's installation notes have a udev rule for
+its programming cables).
 
 1. Shut Linux down on the board, if it is running, with `sudo systemctl halt`, and leave the
    power on. Any flash operation over JTAG stops the CPU.
@@ -32,7 +33,7 @@ the top of the repository.
 2. Check that the board answers:
 
    ```
-   fpga/q --usb jtagconfig -n
+   fpga/q jtagconfig -n
    ```
 
    It lists `DE25-Nano` with one device on a board with the factory flash contents, and with
@@ -41,7 +42,7 @@ the top of the repository.
 3. Read the flash back and keep the file. Nothing is written to the board:
 
    ```
-   fpga/q --usb quartus_pgm -m jtag -c 1 -o "IE;out/fpga/base/readback.jic;MT25QU128"
+   fpga/q quartus_pgm -m jtag -c 1 -o "IE;out/fpga/base/readback.jic;MT25QU128"
    ```
 
    This is the file to write if you want the present contents back later. Terasic's own
@@ -50,7 +51,7 @@ the top of the repository.
 4. Write:
 
    ```
-   fpga/q --usb quartus_pgm -m jtag -c 1 -o "IPV;out/fpga/base/hps.jic"
+   fpga/q quartus_pgm -m jtag -c 1 -o "IPV;out/fpga/base/hps.jic"
    ```
 
    It erases, writes and verifies in about half a minute.

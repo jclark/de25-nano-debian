@@ -14,8 +14,9 @@
 #         hps.jic      the same, as Altera's programmer writes it over JTAG
 # A derived design has no HPS image of its own: its core image loads on the base's.
 #
-# Needs: Docker, git, network access; out/u-boot/u-boot-spl-dtb.hex from Task B (for the
-#        last step only). The first run pulls the Quartus image (17.5 GiB).
+# Needs: Quartus Pro of the version in fpga/QUARTUS_VERSION (fpga/q finds it; fpga/README.md,
+#        "Tools to download"), git, make, cmake, patch, network access;
+#        out/u-boot/u-boot-spl-dtb.hex from Task B (for the last step only).
 #
 # Settings, as environment variables, all optional:
 #   OUT          where the results go (default out/fpga/<name> in this repository)
@@ -79,8 +80,8 @@ sof=$design/output_files/baseline_a55.sof
 # 3. Overlay: independent of the compile. The base's, which reads the video block's source,
 # then the derived design's fragments, then the names of the core and of the boot package
 # whose HPS image it loads on.
-# With dtc on this machine it is built here; otherwise in the Quartus container, which has it.
-ovl=; command -v dtc >/dev/null || ovl=$q
+# It needs dtc.
+ovl=
 # shellcheck disable=SC2046,SC2086
 (cd "$top" && $ovl "$top/fpga/overlay/build.sh" "$out/fpga.dtbo" "$name" "$boot" \
     $([ -z "$core" ] || ls "$core"/overlay/*.dtso 2>/dev/null))
@@ -92,7 +93,7 @@ ovl=; command -v dtc >/dev/null || ovl=$q
 #                        start of the flash to the end of the data; bitswap=on gives the
 #                        bytes as the flash holds them
 #    de25-nano.core.rbf  the core image, loaded by U-Boot from the SD card
-# flash_loader names this board's FPGA as Quartus 26.1.1's programmer identifies it.
+# flash_loader names this board's FPGA as Quartus's programmer identifies it.
 spl=$top/out/u-boot/u-boot-spl-dtb.hex
 [ -f "$spl" ] || fail "no $spl: build Task B first (u-boot/build.sh)"
 (cd "$design" && mkdir -p out && "$q" quartus_pfg -c output_files/baseline_a55.sof out/de25-nano.jic out/de25-nano.rpd \

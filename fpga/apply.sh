@@ -12,7 +12,7 @@
 # CORE_DIR is the directory of a design built on the base (fpga/README.md, "Building on this
 # design"; fpga/example is one). It may be anywhere, as long as the container can see it.
 #
-# Run it where Quartus Pro's qsys-script and patch are on the PATH (the Quartus container, fpga/q).
+# Run it where Quartus Pro's qsys-script and patch are on the PATH: fpga/q fpga/apply.sh ...
 #
 # What it does, in order:
 #   1. Platform Designer, by script (tcl/): the SoC-to-FPGA connections, passed up the
@@ -37,7 +37,7 @@ for f in top.qpf baseline_a55.sv baseline_a55.qsf baseline_top.qsys hps_subsys.q
     [ -f "$design/$f" ] || fail "$design does not look like the design directory: no $f"
 done
 [ ! -e "$design/src/hdmi_scanout.sv" ] || fail "$design already has the changes applied"
-command -v qsys-script >/dev/null || fail "qsys-script is not on the PATH: run this in the Quartus container"
+command -v qsys-script >/dev/null || fail "qsys-script is not on the PATH: run this with fpga/q"
 command -v patch >/dev/null || fail "patch is not on the PATH"
 if [ -n "$core" ]; then
     [ -f "$core/core.conf" ] || fail "no core.conf in $core"

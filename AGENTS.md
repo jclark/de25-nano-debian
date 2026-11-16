@@ -11,10 +11,13 @@ produces, what it needs first, its tools, its source and its commands.
 ## Building it for someone
 
 Before starting, check the machine and say what is missing: Docker usable by this user, git,
-free disk (about 10 GB for stage 1, 60 GB with stage 2), and for the SD image on x86,
-`ls /proc/sys/fs/binfmt_misc/ | grep aarch64`.
+free disk (about 10 GB), for the SD image on x86 `ls /proc/sys/fs/binfmt_misc/ | grep
+aarch64`, and for stage 2 Quartus Pro of the version in `fpga/QUARTUS_VERSION`
+(`fpga/q quartus_sh --version` finds it or says it is missing).
 
-Tell the person before a large download. The Quartus image for Task F is 17.5 GiB.
+Quartus Pro has to be installed by the person: getting its installer needs their account
+with Altera, and it is a 17 GB download and 38 GB on disk. Do not change
+`fpga/QUARTUS_VERSION` to match a version the machine happens to have.
 
 Order:
 

@@ -22,7 +22,7 @@ on a card, and one is selected.
 |---|---|---|
 | What you do | Write an SD card | Also write the board's flash, once, and select a core: two commands on the board, a reboot and a power cycle |
 | The flash | Left as it came from the factory | Holds the HPS image built here. The core image is then a file on the SD card, loaded at every boot. |
-| What you need | Docker | Also Altera's Quartus Pro, which is free for this FPGA and comes as a Docker image (17.5 GiB), to build the FPGA design |
+| What you need | Docker | Also Altera's Quartus Pro 26.3, which is free for this FPGA, installed on the build machine (38 GB), to build the FPGA design |
 | Debian, near-mainline kernel, serial console, Ethernet with its PTP clock | yes | yes |
 | PPS input and output, UART, I2C and SPI on the 40-pin headers | no | yes |
 | Fan control | no: the fan runs at its power-on speed, which is loud | yes |
@@ -34,12 +34,17 @@ SD card: one card image serves both. The image has the HPS image and the base co
 installed as packages. Neither is used until a command on the board asks for it: the flash
 is then written at the next boot, and after a power cycle the core is loaded at every boot.
 
-Everything is built from source on one x86-64 Linux machine, in containers.
+Everything is built from source on one x86-64 Linux machine.
 
 ## What you need
 
-- An x86-64 Linux machine with Docker and git, about 60 GB of free disk for stage 2 (the
-  Quartus image unpacks to 34 GB) or 10 GB for stage 1, and a network connection.
+- An x86-64 Linux machine with Docker and git, about 10 GB of free disk, and a network
+  connection.
+- For stage 2: Altera's Quartus Pro 26.3 installed on that machine, with Agilex 5 device
+  support and RiscFree, another 38 GB, and `make cmake patch device-tree-compiler`.
+  Getting the installer needs an account with Altera; [fpga/README.md](fpga/README.md),
+  "Tools to download", has the details. Installing a release needs none of this: its
+  packages carry the built FPGA design.
 - For Task I on x86: qemu-user with binfmt for aarch64 (Debian and Ubuntu: package
   `qemu-user-static`, or `qemu-user-binfmt`), because the Debian root filesystem is put together
   by running arm64 programs.
@@ -51,7 +56,7 @@ packages, the overlay and the QEMU test run without containers: `gcc-aarch64-lin
 build-essential bc bison flex libdw-dev libelf-dev libssl-dev debhelper dpkg-dev rsync cpio
 kmod` (kernel), `u-boot-tools device-tree-compiler` (packages, overlay), `qemu-system-arm
 mtools` (test). U-Boot is always built in its container, which has the particular compiler
-it needs, and so are the image, which needs root, and the FPGA design, which needs Quartus.
+it needs, and so is the image, which needs root.
 
 ## Tasks
 
@@ -104,7 +109,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | B | U-Boot, with TF-A | `u-boot.itb` for the card; the SPL for the HPS image | nothing | Docker | [u-boot/README.md](u-boot/README.md) |
 | K | Kernel | the kernel as a Debian package: kernel, modules and device trees | nothing | Docker | [kernel/README.md](kernel/README.md) |
-| F | FPGA design | the core image `fpga.rbf`, its overlay `fpga.dtbo`, and the HPS image for the flash | the SPL from Task B, for its last step | Docker with the Quartus image | [fpga/README.md](fpga/README.md) |
+| F | FPGA design | the core image `fpga.rbf`, its overlay `fpga.dtbo`, and the HPS image for the flash | the SPL from Task B, for its last step | Quartus Pro 26.3 | [fpga/README.md](fpga/README.md) |
 | P | Packages | `de25-nano-fpga-tools`, `de25-nano-boot-base`, `de25-nano-core-base` | Task B and Task F for the last two | Docker | [packages/README.md](packages/README.md) |
 | I | SD card image | the card image, one for both stages | Tasks K and P | Docker, qemu-user | [sdimage/README.md](sdimage/README.md) |
 
@@ -138,7 +143,7 @@ order.
 ```
 u-boot/build.sh     # Task B, a few minutes
 kernel/build.sh     # Task K, about six minutes on a 24-thread machine
-fpga/build.sh       # Task F: pulls 17.5 GiB once, then about fifteen minutes
+fpga/build.sh       # Task F, about ten minutes
 packages/build.sh   # Task P, seconds
 sdimage/build.sh    # Task I, five to ten minutes
 ```

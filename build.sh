@@ -14,7 +14,7 @@
 # Tasks B (U-Boot), K (kernel) and F (FPGA design) run at the same time; then Task P
 # (packages) and Task I (image). Each task's output goes to a file in work/logs/, and a line
 # is printed here as each starts and finishes. A task that has been built before does only
-# what is left to do. The first run with Task F pulls the Quartus image (17.5 GiB).
+# what is left to do. Task F needs Quartus Pro installed (fpga/README.md).
 #
 # Needs: what build.md lists under "What you need".
 set -eu

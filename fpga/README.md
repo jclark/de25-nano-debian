@@ -62,21 +62,33 @@ overlay need nothing, so start this task at the same time as Tasks B and K.
 
 ## Tools to download
 
-- Docker, and Altera's Quartus Pro 26.1.1 image from Docker Hub,
-  `alterafpga/quartus-pro:26.1.1-agilex5`: 17.5 GiB to pull, 34 GB unpacked, no account needed.
-  `quartus/Dockerfile` adds what Altera's image lacks for this design: CA certificates (without
-  them the licence fetch fails with a misleading "not found in product list"), make, git,
-  cmake, a RISC-V compiler for the firmware of the design's self-test processor, patch and dtc.
-- The licence: this FPGA family is free but licensed. Quartus fetches the licence by itself
-  over HTTPS the first time the fitter runs and keeps it in `work/quartus-home`. It is tied to
-  a network card's address, so the container runs with `--net=host`.
-- `fpga/q COMMAND` runs a command in that container; the build script uses it.
+- Altera's Quartus Pro, the version in `QUARTUS_VERSION` (26.3), installed on the build
+  machine with Agilex 5 device support and RiscFree, which has the RISC-V compiler for the
+  firmware of the design's self-test processor. The software is free for this FPGA family.
+  Altera's installer is downloaded from Altera's site, which asks for an account; the
+  installer then fetches its parts itself, about 17 GB, and the installation takes 38 GB.
+  Altera publishes containers of Quartus Pro on Docker Hub, which need no account, but none
+  yet for 26.3.
+- `fpga/q COMMAND` runs a command with that Quartus on the PATH; the build script uses it.
+  It looks in the directory named by `DE25_QUARTUS`, then in `~/altera/26.3` and
+  `/opt/altera/26.3`, where the installer puts it, then on the PATH, and checks the version.
+- The licence: the family is free but licensed. Quartus fetches the licence by itself over
+  HTTPS the first time the fitter runs.
+- `make`, `cmake`, `patch`, `git` and `dtc` (Debian and Ubuntu: packages `make cmake patch
+  git device-tree-compiler`).
+
+The version is not a matter of taste: a core image loads only on an HPS image made with the
+same Quartus version, so everything built on this design uses the version named here.
 
 ## Source
 
 Altera's reference design for this board, MIT-licensed:
 `https://github.com/altera-fpga/agilex5-ed-hps-baseline`, the tag named in `ALTERA_TAG`
-(`QPDS26.1.1_REL_GSRD_PR`), directory `terasic-de25-nano-devkit/baseline-a55`. It already
+(`QPDS26.1.1_REL_GSRD_PR`), directory `terasic-de25-nano-devkit/baseline-a55`. That is the
+design as Altera released it for Quartus 26.1.1, built here with Quartus 26.3. Altera's
+release for 26.3 keeps the Platform Designer systems in a new form (`.vds`) that cannot be
+changed by script, and all the changes here to those systems are scripts; the 26.1.1 release
+has them as `.qsys` files, which Quartus 26.3 still builds. It already
 loads the core image from U-Boot. Altera calls that "HPS boot first", HPS being its name for
 the SoC part of the chip: the ARM CPU and its peripherals.
 
@@ -254,7 +266,7 @@ chip's eight delay settings.
 ### The overlay alone
 
 ```
-fpga/q fpga/overlay/build.sh          # from the top of the repository
+fpga/overlay/build.sh
 ```
 
 It needs only `dtc`. It fills the frame buffer's address and size into the template from

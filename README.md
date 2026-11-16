@@ -37,7 +37,7 @@ supervision.
 - **Device tree:** Altera's device tree for the board, ported to the mainline kernel, and an
   overlay for what the FPGA's core image adds.
 - **User space:** Debian 13 (trixie) from the Debian archive.
-- **FPGA bitstream:** built with Quartus Pro 26.1.1 from
+- **FPGA bitstream:** built with Quartus Pro 26.3 from
   - Altera's HPS-first reference design for the board;
   - a custom video block, which drives the HDMI transmitter from a frame buffer;
   - connections from the GPIO headers and the fan controller to the SoC.
