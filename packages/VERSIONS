@@ -1,0 +1,4 @@
+# Versions of the packages built here. packages/README.md says when each is raised.
+TOOLS_VERSION=0.2
+BOOT_VERSION=0.2
+CORE_BASE_VERSION=0.2

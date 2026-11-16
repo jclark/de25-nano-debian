@@ -15,7 +15,7 @@
 setenv fdtfile intel/socfpga_agilex5_de25_nano.dtb
 
 # Overlays named on the boot menu's "fdtoverlays" line are applied only if this variable, the
-# address they are loaded to, is set. It is set below, when the FPGA design has loaded.
+# address they are loaded to, is set. It is set below, when the core image has loaded.
 setenv fdtoverlay_addr_r
 
 # The kernel in a Debian kernel package is compressed. U-Boot unpacks it to this address
@@ -24,15 +24,15 @@ setenv kernel_comp_addr_r 0x90000000
 setenv kernel_comp_size 0x2000000
 
 # Whether the chip's Secure Device Manager (SDM) keeps the QSPI flash to itself. It does with
-# the factory flash contents; with the first-stage image built here it hands the flash to the SoC,
-# and the first-stage loader records the flash controller's clock rate, which U-Boot puts in
+# the factory flash contents; with the HPS image built here it hands the flash to the SoC,
+# and the SPL records the flash controller's clock rate, which U-Boot puts in
 # qspi_clock. No rate means the SDM kept the flash.
 setenv flash_sdm no
 if test "${qspi_clock}" = "<0x00000000>"; then
     setenv flash_sdm yes
 fi
 
-# A flash write asked for with "de25-fpga enable": the file write-on-boot.rpd beside this
+# A flash write asked for with "de25-flash write": the file write-on-boot.rpd beside this
 # script holds the new flash contents, and write-on-boot.txt their crc32. It is done here,
 # through the SDM, on a board whose flash the SDM keeps. The LED wired to the SoC (HPS_LED)
 # shows how it is going:
@@ -46,7 +46,7 @@ fi
 # is read back from the card or the flash; 0x98000000 the small text files.
 if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
     led hps_led0 blink 2000
-    echo "*** Flash write requested (de25-fpga enable). Do not unplug the power. ***"
+    echo "*** Flash write requested (de25-flash write). Do not unplug the power. ***"
     setenv flash_ok yes
 
     setenv flash_step "loading write-on-boot.rpd and write-on-boot.txt"
@@ -143,7 +143,7 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
         echo "*** The flash is written and verified. ***"
         echo "*** Unplug the power, then plug it in again. ***"
     else
-        # A one-line text file for "de25-fpga status": failed_while=<the step>. The export
+        # A one-line text file for "de25-flash status": failed_while=<the step>. The export
         # ends with a zero byte, which is left out.
         setenv failed_while "${flash_step}"
         env export -t 0x98000000 failed_while
@@ -151,7 +151,7 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
         fatwrite mmc 0:1 0x98000000 write-on-boot-failed.txt ${flash_chk}
         led hps_led0 blink 250
         echo "*** The flash write FAILED while ${flash_step}. ***"
-        echo "*** After a power cycle, sudo de25-fpga status says what the card recorded. ***"
+        echo "*** After a power cycle, sudo de25-flash status says what the card recorded. ***"
     fi
     # Stay here: what the chip runs now and what the flash holds may no longer belong together.
     while true; do
@@ -159,20 +159,20 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
     done
 fi
 
-# The FPGA design, fpga.rbf, beside this script. "de25-fpga enable" puts it there. It is
+# The core image, fpga.rbf, beside this script. "de25-fpga select" puts it there. It is
 # loaded only when the SDM has handed the flash over, that is, when the flash holds the
-# first-stage image the design belongs to: a board with the factory flash contents refuses the
-# design and then hangs at its next restart until it is power cycled.
+# HPS image the core was built for: a board with the factory flash contents refuses the
+# core and then hangs at its next restart until it is power cycled.
 if test -e mmc 0:1 fpga.rbf; then
     if test "${flash_sdm}" = yes; then
-        echo "fpga.rbf is on the card but the flash is not written yet: booting without the FPGA design"
+        echo "fpga.rbf is on the card but the flash is not written yet: booting without a core image"
     elif load mmc 0:1 ${kernel_addr_r} fpga.rbf && fpga load 0 ${kernel_addr_r} ${filesize}; then
         bridge enable
         setenv fdtoverlay_addr_r 0x87000000
     else
-        echo "*** fpga.rbf was not accepted: booting without the FPGA design ***"
+        echo "*** fpga.rbf was not accepted: booting without a core image ***"
         echo "*** The next restart will hang. Run: sudo de25-fpga disable, then power cycle the board ***"
     fi
 else
-    echo "No fpga.rbf on the card: booting without the FPGA design"
+    echo "No fpga.rbf on the card: booting without a core image"
 fi

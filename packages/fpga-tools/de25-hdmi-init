@@ -1,5 +1,5 @@
 #!/bin/sh
-# Set up the DE25-Nano's HDMI transmitter (ADV7513) from Linux for the fabric's fixed scan-out:
+# Set up the DE25-Nano's HDMI transmitter (ADV7513) from Linux for the base core's fixed scan-out:
 # 1920x1080 at 60 Hz, 24-bit RGB, separate syncs. Reports what the chip sees.
 #
 # The register writes follow the kernel's ADV7511 driver (drivers/gpu/drm/bridge/adv7511/

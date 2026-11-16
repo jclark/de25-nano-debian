@@ -5,7 +5,7 @@ ConditionPathExists=/sys/bus/i2c/devices/i2c-0
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/sbin/de25-hdmi-init 0
+ExecStart=/usr/sbin/de25-hdmi-init 0
 
 [Install]
 WantedBy=multi-user.target

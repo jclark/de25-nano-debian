@@ -1,0 +1,115 @@
+.TH DE25-FPGA 8 "November 2026" "de25-nano-fpga-tools" "DE25-Nano"
+.SH NAME
+de25-fpga \- choose the core image loaded into the DE25-Nano's FPGA at boot
+.SH SYNOPSIS
+.B de25-fpga list
+.br
+.B de25-fpga select
+.RB [ \-\-force ]
+.I name
+.br
+.B de25-fpga disable
+.br
+.B de25-fpga status
+.SH DESCRIPTION
+On a DE25-Nano set up for Altera's "HPS boot first" mode the chip is configured in two
+phases. Phase 1 happens at power-on, from the HPS image in the board's flash: it sets up
+the SoC and starts U-Boot. Phase 2 happens later, when U-Boot loads a
+.I core image
+into the FPGA from the SD card. The core image is the FPGA's logic and pins.
+.PP
+Several core images can be installed side by side.
+Each comes in a package named
+.BI de25-nano-core- name
+and is kept in
+.BI /usr/lib/de25-nano/core/ name\fR.
+Exactly one of them, or none, is
+.I selected
+to be loaded at boot.
+.B de25-fpga
+makes that choice.
+It never writes the flash; that is
+.BR de25-flash (8).
+.PP
+A core image loads only on the HPS image it was built for.
+Each core names the boot package
+.RB ( de25-nano-boot-... )
+whose HPS image it needs.
+If the chip refuses a core image, Linux still starts, without the core, but the board
+then cannot restart until its power has been unplugged and plugged in again.
+.SH COMMANDS
+.TP
+.B list
+List the installed cores, one a line: the name, whether it is selected and whether it is
+running, and the boot package it needs.
+.TP
+.BI select " name"
+Load the core
+.I name
+from the next boot on.
+The command first checks that the core fits the flash.
+It is taken to fit if the core now running needs the same boot package, if the flash
+holds the HPS image of that boot package as installed, or if a flash write of that HPS
+image is waiting for the next boot.
+Otherwise the command changes nothing and says how to write the flash.
+.TP
+.B disable
+Load no core from the next boot on.
+.TP
+.B status
+Show the selected core and the running core.
+If a core was selected but is not running, say why, as far as can be told.
+.SH OPTIONS
+.TP
+.B \-\-force
+With
+.BR select :
+select the core without the check that it fits.
+.SH UPGRADES
+When the package of the selected core is upgraded, the new core image is put in place
+by itself and is loaded at the next boot, as a new kernel is.
+If the new version needs a different boot package, the card keeps the version it has,
+and the upgrade says what to do.
+Removing the package of the selected core has the effect of
+.BR disable .
+.SH WITHOUT A CORE
+Without a core the board has its serial console and Ethernet, with the Ethernet PTP
+clock.
+The signals on the GPIO headers, the HDMI output and the control of the fan come with
+the core.
+.SH FILES
+.TP
+.BI /usr/lib/de25-nano/core/ name /fpga.rbf
+The core image.
+.TP
+.BI /usr/lib/de25-nano/core/ name /fpga.dtbo
+Its device tree overlay: what Linux must be told when the core is loaded.
+.TP
+.BI /usr/lib/de25-nano/core/ name /boot
+The name of the boot package whose HPS image the core loads on.
+.TP
+.I /boot/firmware/fpga.rbf
+The selected core image, which U-Boot loads. Not there when no core is selected.
+.TP
+.I /boot/firmware/fpga-core.txt
+The name of the selected core.
+.TP
+.I /boot/dtbo/fpga.dtbo
+The selected core's overlay, which the boot menu names. U-Boot applies it only when the
+core image has loaded.
+.TP
+.I /proc/device-tree/chosen/de25-nano,core
+The name of the running core, from its overlay.
+.SH EXAMPLES
+A board whose flash has been written with
+.BR "de25-flash write" :
+.PP
+.nf
+.RS
+sudo de25-fpga select base
+sudo reboot
+.RE
+.fi
+.SH SEE ALSO
+.BR de25-flash (8),
+.BR u-boot-update (8)

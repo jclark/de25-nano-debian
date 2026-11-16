@@ -1,0 +1,30 @@
+#!/bin/sh
+# Make the package de25-nano-core-NAME from a built core image. Used here for the base core,
+# and by projects that build their own core on this repository (fpga/README.md, "Building on
+# this design").
+#
+# Usage: packages/mkdeb-core NAME VERSION INDIR OUTDIR
+#   INDIR   holds fpga.rbf, fpga.dtbo and boot-name, as fpga/build.sh leaves them in
+#           out/fpga/NAME; optionally copyright, for /usr/share/doc
+#   OUTDIR  where de25-nano-core-NAME_VERSION_arm64.deb is written
+#   DESCRIPTION, in the environment: a paragraph for the package's description (optional)
+# Needs dpkg-deb, or else Docker.
+set -eu
+top=$(cd "$(dirname "$0")/.." && pwd)
+[ $# -eq 4 ] || { sed -n '2,11p' "$0"; exit 2; }
+name=$1; version=$2
+in=$(cd "$3" && pwd); mkdir -p "$4"; out=$(cd "$4" && pwd)
+fail() { echo "mkdeb-core: $*" >&2; exit 1; }
+case $name in ''|*[!a-z0-9-]*) fail "NAME must be lower-case letters, digits and hyphens" ;; esac
+for f in fpga.rbf fpga.dtbo boot-name; do [ -f "$in/$f" ] || fail "no $f in $in"; done
+# With dpkg-deb on this machine, run here; otherwise in Task I's container.
+if command -v dpkg-deb >/dev/null; then
+    exec sh "$top/packages/inner.sh" core "$name" "$(cat "$in/boot-name")" "$version" "$in" "$out"
+fi
+docker build -q -t de25-nano-sdimage "$top/sdimage" >/dev/null
+mounts="-v $out:$out"
+[ "$in" = "$out" ] || mounts="$mounts -v $in:$in:ro"
+# shellcheck disable=SC2086
+exec docker run --rm --user "$(id -u):$(id -g)" -e DESCRIPTION \
+    -v "$top":"$top":ro $mounts \
+    de25-nano-sdimage sh "$top/packages/inner.sh" core "$name" "$(cat "$in/boot-name")" "$version" "$in" "$out"

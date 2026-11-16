@@ -1,0 +1,166 @@
+.TH DE25-FLASH 8 "November 2026" "de25-nano-fpga-tools" "DE25-Nano"
+.SH NAME
+de25-flash \- write the DE25-Nano's flash, which holds the HPS image
+.SH SYNOPSIS
+.B de25-flash status
+.br
+.B de25-flash write
+.RB [ \-\-force ]
+.RI [ name ]
+.br
+.B de25-flash restore
+.RB [ \-\-force ]
+.RI [ file ]
+.br
+.B de25-flash sync
+.SH DESCRIPTION
+The DE25-Nano's flash chip holds what the board runs first.
+As the board is shipped, that is Terasic's whole FPGA design with a boot loader.
+For Altera's "HPS boot first" mode, which this system uses, it is the
+.IR "HPS image" :
+the settings of the SoC (its pins and memory, and which of its peripherals are routed to
+the FPGA) and U-Boot's first stage, the SPL.
+The FPGA's logic is then a core image on the SD card, chosen with
+.BR de25-fpga (8).
+.PP
+A
+.I boot package
+is everything that runs before the kernel, built together: the HPS image
+.RB ( hps.rpd ),
+which goes in the flash, and
+.B u-boot.itb
+and
+.BR boot.scr ,
+which go on the card's FAT partition,
+.IR /boot/firmware .
+A boot package is named
+.BI de25-nano-boot- name
+and is kept in
+.BI /usr/lib/de25-nano/boot/ name\fR.
+Installing or upgrading the package does not write the flash.
+.B de25-flash write
+does, and nothing else does.
+.PP
+The chip takes up new flash contents only at power-on.
+After the flash has been written, the board's power must be unplugged and plugged in
+again; a restart is not enough, and must not be tried.
+.SH COMMANDS
+.TP
+.B status
+Show whether the SoC has access to the flash, what the flash holds, whether
+.B u-boot.itb
+and
+.B boot.scr
+on the card are those of an installed boot package, whether a flash write is waiting or
+has failed, and the saved flash contents on the card.
+What the flash holds is shown only to root, who alone can read it.
+.TP
+.BR write " [\fIname\fR]"
+Put the boot package
+.I name
+into effect: write its HPS image to the flash and put its
+.B u-boot.itb
+and
+.B boot.scr
+on the card.
+.I name
+may be left out when one boot package is installed.
+The command says what it will do and asks first.
+.IP
+On a board whose flash holds the factory contents, Linux cannot reach the flash.
+The command then leaves the HPS image on the card, and U-Boot writes it at the next boot:
+it checks the image, saves what the flash held to the card as
+.BI saved- crc32 .rpd\fR,
+writes, and compares.
+This takes about two minutes, and the LED beside the HPS KEY button shows how it is going:
+one second on and one second off while it works, steady on when it has finished, four
+blinks a second if it failed.
+Copy the saved file to another computer as well.
+.IP
+On a board whose flash already holds an HPS image, Linux writes the flash directly.
+What the flash held is not saved.
+.IP
+If the flash already holds exactly the HPS image to be written, the flash is left alone
+and only the two files on the card are renewed.
+.TP
+.BR restore " [\fIfile\fR]"
+Write saved flash contents back, from Linux, and stop a core being loaded at boot.
+Without
+.I file
+it takes the saved file on the card, if there is exactly one.
+The file must be the whole flash, 16 MiB.
+With the factory contents back and Terasic's card in the board, the board is as it came.
+.TP
+.B sync
+Renew
+.B u-boot.itb
+and
+.B boot.scr
+on the card from the installed boot package, but only if the flash holds exactly that
+package's HPS image.
+It never writes the flash.
+It is run when a boot package is installed or upgraded, so an upgrade that leaves the HPS
+image unchanged takes effect at the next boot, and one that changes it waits for
+.BR "de25-flash write" .
+.SH OPTIONS
+.TP
+.B \-\-force
+With
+.B write
+and
+.BR restore :
+do not ask.
+.SH FILES
+.TP
+.BI /usr/lib/de25-nano/boot/ name /hps.rpd
+The HPS image, as raw bytes from the start of the flash.
+.TP
+.BI /usr/lib/de25-nano/boot/ name /u-boot.itb
+U-Boot with TF-A, which the SPL loads from the card.
+.TP
+.BI /usr/lib/de25-nano/boot/ name /boot.scr
+The script U-Boot runs. It writes the flash when asked, and loads the selected core image.
+.TP
+.I /dev/mtd0
+The flash, when the chip has handed it to the SoC. Not there with the factory contents.
+.TP
+.IR /boot/firmware/write-on-boot.rpd ", " /boot/firmware/write-on-boot.txt
+A flash write waiting for the next boot: the new contents, and their checksum.
+.TP
+.BI /boot/firmware/saved- crc32 .rpd
+What the flash held before U-Boot wrote it.
+.TP
+.I /boot/firmware/write-on-boot-failed.txt
+Left by U-Boot if the write failed: the step it failed in.
+.TP
+.I /boot/firmware/u-boot-previous.itb
+The
+.B u-boot.itb
+that was on the card before the last change.
+.SH EXAMPLES
+A new board, with its factory flash contents: write the flash, and have the base core
+loaded afterwards.
+.PP
+.nf
+.RS
+sudo de25-flash write
+sudo de25-fpga select base
+sudo reboot
+.RE
+.fi
+.PP
+Then watch the LED, and when it is steady on, unplug the power and plug it in again.
+.PP
+Going back to the factory contents:
+.PP
+.nf
+.RS
+sudo de25-flash restore
+sudo systemctl halt
+.RE
+.fi
+.PP
+Then unplug the power and plug it in again.
+.SH SEE ALSO
+.BR de25-fpga (8),
+.BR flashcp (8)

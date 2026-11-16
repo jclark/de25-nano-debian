@@ -1,4 +1,4 @@
-# Fan curve for the DE25-Nano, read by /usr/local/sbin/de25-fan-curve when the fan controller
+# Fan curve for the DE25-Nano, read by /usr/sbin/de25-fan-curve when the fan controller
 # (AMC6821) appears. The controller holds the curve and follows the FPGA's temperature itself.
 # After a change, reboot, or apply it at once with:
 #   sudo udevadm trigger --action=add --subsystem-match=hwmon
