@@ -7,10 +7,13 @@
 #             the kernel, its modules and its device trees, as the kernel's own
 #             "make bindeb-pkg" packages them
 #         out/kernel/config    the configuration used
-# Needs: Docker, git, network access to github.com. About 5 GB of disk.
+# Needs: git and network access to github.com; the tools of kernel/Dockerfile on this machine,
+#        or else Docker. About 5 GB of disk.
 #
-# The source is fetched once into work/linux. To build another branch or your own tree, set
-# LINUX_BRANCH, or put the tree at work/linux yourself.
+# The source is fetched into work/linux, and a later run brings that clone up to the head of
+# the branch. To build another branch, set LINUX_BRANCH and delete work/linux; to build your
+# own tree, put it at work/linux yourself: a tree that is not an unchanged clone of the branch
+# is built as it is.
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
 work=$top/work; out=$top/out/kernel
@@ -19,7 +22,18 @@ mkdir -p "$work" "$out"
 LINUX_REPO=${LINUX_REPO:-https://github.com/jclark/linux}
 LINUX_BRANCH=${LINUX_BRANCH:-de25-nano-mainline/v7.4}
 
-[ -d "$work/linux/.git" ] || git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_REPO" "$work/linux"
+if [ ! -d "$work/linux/.git" ]; then
+    git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_REPO" "$work/linux"
+elif [ "$(git -C "$work/linux" remote get-url origin 2>/dev/null)" = "$LINUX_REPO" ] &&
+     [ "$(git -C "$work/linux" rev-parse --abbrev-ref HEAD)" = "$LINUX_BRANCH" ] &&
+     [ -z "$(git -C "$work/linux" status --porcelain --untracked-files=no)" ]; then
+    # The branch moves forward (kernel/README.md): bring the clone this script made up to it.
+    git -C "$work/linux" fetch --depth 1 origin "$LINUX_BRANCH"
+    git -C "$work/linux" reset -q --hard FETCH_HEAD
+else
+    echo "kernel/build.sh: work/linux is not an unchanged clone of $LINUX_REPO $LINUX_BRANCH: building it as it is"
+fi
+git -C "$work/linux" log -1 --format='kernel source: %h %s'
 
 # The date of the source's last commit goes into the kernel's release name, before the commit
 # id that the kernel build adds: 7.4.0-rc2-de25-nano-20261113-g6f97abefdd47. Releases then
@@ -29,14 +43,13 @@ stamp=$(git -C "$work/linux" log -1 --format=%cd --date=format:%Y%m%d)
 # Packages of an earlier build would be picked up below.
 rm -f "$work"/linux-image-*.deb "$work"/linux-libc-dev_*.deb "$work"/linux-upstream_*
 
-docker build -q -t de25-nano-kernel "$top/kernel" >/dev/null
-docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
-    -v "$top":"$top" -w "$work/linux" de25-nano-kernel sh -euc '
-    top="'"$top"'"; obj=$top/work/linux-obj
+# What is run, on this machine or in the container.
+build='
+    obj=$top/work/linux-obj
     jobs=$(nproc)
     # KBUILD_BUILD_USER, KBUILD_BUILD_HOST: the kernel records who built it and where, and the
     # packaging wants a user name, which the user in the container does not have.
-    mk() { make O="$obj" LOCALVERSION=-de25-nano-'"$stamp"' \
+    mk() { make O="$obj" LOCALVERSION=-de25-nano-$stamp \
                KBUILD_BUILD_USER=build KBUILD_BUILD_HOST=de25-nano-debian "$@"; }
     # Configuration: arm64 defconfig plus the three options in the fragment.
     mk defconfig
@@ -50,6 +63,38 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     cp "$obj/.config" "$top/out/kernel/config"
     echo "kernel release: $(cat "$obj/include/config/kernel.release")"
 '
+# With the compiler and the other tools of kernel/Dockerfile on this machine, build here;
+# otherwise in the container.
+native=yes
+case $(uname -m) in
+    aarch64) cross= ;;
+    *) cross=aarch64-linux-gnu-; command -v ${cross}gcc >/dev/null || native=no ;;
+esac
+for t in gcc make bc bison flex dpkg-buildpackage dh rsync cpio; do
+    command -v $t >/dev/null || native=no
+done
+[ -f /usr/include/libelf.h ] && [ -f /usr/include/openssl/ssl.h ] || native=no
+# The kernel installs its device trees with many "install -D" at once. GNU's install copes
+# with two of them making the same directory; the one in uutils coreutils 0.10 (Ubuntu's
+# default) fails. Where install is not GNU's, use gnuinstall if the machine has it.
+if [ $native = yes ] && ! install --version 2>/dev/null | grep -q 'GNU coreutils'; then
+    if command -v gnuinstall >/dev/null; then
+        mkdir -p "$work/gnu-bin"
+        ln -sf "$(command -v gnuinstall)" "$work/gnu-bin/install"
+        PATH=$work/gnu-bin:$PATH
+    else
+        native=no
+    fi
+fi
+if [ $native = yes ]; then
+    echo "kernel/build.sh: building on this machine, with $(${cross}gcc --version | head -n 1)"
+    (cd "$work/linux" && top=$top stamp=$stamp ARCH=arm64 CROSS_COMPILE=$cross sh -euc "$build")
+else
+    echo "kernel/build.sh: building in the container (not every tool of kernel/Dockerfile is on this machine)"
+    docker build -q -t de25-nano-kernel "$top/kernel" >/dev/null
+    docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e top="$top" -e stamp="$stamp" \
+        -v "$top":"$top" -w "$work/linux" de25-nano-kernel sh -euc "$build"
+fi
 # dpkg-buildpackage leaves the packages beside the build directory.
 rm -f "$out"/linux-image-*.deb
 deb=$(ls "$work"/linux-image-*_arm64.deb 2>/dev/null | grep -v -- '-dbg_' | head -n 1)

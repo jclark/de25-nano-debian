@@ -23,8 +23,8 @@ What the package installs:
 | `/usr/lib/linux-image-<release>/intel/socfpga_agilex5_de25_nano.dtb` | The board's device tree, with the kernel's other arm64 device trees beside it |
 
 The device tree describes the board as it leaves the factory: what is wired to the SoC's own
-pins. It has nothing that needs the FPGA design in this repository; that is in the overlay
-built by Task F. It is built with symbols (`dtc -@`), so that U-Boot can apply the overlay to
+pins. It has nothing that needs a core image in the FPGA; that is in the overlay built by
+Task F. It is built with symbols (`dtc -@`), so that U-Boot can apply the overlay to
 it.
 
 Installing or removing the package runs Debian's kernel hooks. In the image, the
@@ -37,8 +37,9 @@ Nothing.
 
 ## Tools to download
 
-Docker. `kernel/Dockerfile` is Debian 13 (trixie) with these packages, which are also what a
-Debian or Ubuntu machine needs to do the build without Docker:
+Either the packages below on this machine, or Docker. The script builds on the machine when
+it finds them all and in the container otherwise. `kernel/Dockerfile` is Debian 13 (trixie)
+with these packages:
 
 | Packages | For |
 |---|---|
@@ -51,7 +52,7 @@ Debian or Ubuntu machine needs to do the build without Docker:
 
 ## Source
 
-`https://github.com/jclark/linux`, branch `de25-nano-mainline/v7.4`: Linux 7.4-rc2 plus a
+`https://github.com/jclark/linux`, branch `de25-nano-mainline/v7.4`: Linux 7.4-rc3 plus a
 short stack of patches.
 
 Kept on this branch, not for submission upstream:
@@ -83,8 +84,9 @@ buffer for HDMI.
 kernel/build.sh
 ```
 
-It clones the branch into `work/linux` (a shallow clone, about 300 MB), configures, and runs
-`make bindeb-pkg` for arm64 in the container. The build tree is `work/linux-obj`; a second run
+It clones the branch into `work/linux` (a shallow clone, about 300 MB), or brings that clone
+up to the head of the branch if it is already there, configures, and runs
+`make bindeb-pkg` for arm64. The build tree is `work/linux-obj`; a second run
 reuses it. About six minutes on a 24-thread machine.
 
 What the script sets, and why:
@@ -92,7 +94,7 @@ What the script sets, and why:
 | Setting | Why |
 |---|---|
 | `ARCH=arm64`, `CROSS_COMPILE=aarch64-linux-gnu-` (in the Dockerfile) | Cross-compile. On an arm64 machine leave both out. |
-| `LOCALVERSION=-de25-nano-<date>` | The date of the source's last commit. The release is then `7.4.0-rc2-de25-nano-<date>-g<commit>`, so releases sort by age and the newest installed kernel is the boot menu's default |
+| `LOCALVERSION=-de25-nano-<date>` | The date of the source's last commit. The release is then `7.4.0-rc3-de25-nano-<date>-g<commit>`, so releases sort by age and the newest installed kernel is the boot menu's default |
 | `DEB_BUILD_PROFILES="pkg.linux-upstream.nokernelheaders pkg.linux-upstream.nokerneldbg"` | No `linux-headers` package, which when cross-compiling would need arm64 libraries on the build machine, and no debug symbols package, which is large |
 | `KBUILD_BUILD_USER`, `KBUILD_BUILD_HOST` | The kernel records who built it and where; the packaging also needs a user name, which the user in the container does not have |
 | `KDEB_CHANGELOG_DIST=trixie` | The distribution named in the package's changelog; without it the packaging wants `lsb-release` |
