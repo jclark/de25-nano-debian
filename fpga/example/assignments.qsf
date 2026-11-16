@@ -1,0 +1,3 @@
+# Example: JP1 pin 31 (GPIO0_D[26] in Terasic's golden top)
+set_location_assignment PIN_H19 -to jp1_31_blink
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to jp1_31_blink

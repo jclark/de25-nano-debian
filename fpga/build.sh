@@ -1,29 +1,60 @@
 #!/bin/sh
-# Build Task F: the FPGA design for the DE25-Nano. See fpga/README.md.
+# Build Task F: the FPGA design for the DE25-Nano, or a design built on it. See fpga/README.md.
 #
-# Usage: fpga/build.sh
-# Output: out/fpga/fpga.rbf             the fabric, for the SD card
-#         out/fpga/fpga.dtbo            its device tree overlay, for the SD card
-#         out/fpga/de25-nano.hps.rpd    the first-stage image, for the flash: raw bytes, as
-#                                       U-Boot writes it
-#         out/fpga/de25-nano.hps.jic    the same, as Altera's programmer writes it over JTAG
+# Usage: fpga/build.sh              the base design
+#        fpga/build.sh CORE_DIR     a derived design (fpga/README.md, "Building on this
+#                                   design"); CORE_DIR may be outside this repository
+#
+# Output, in out/fpga/<name>/ (<name> is base, or NAME from CORE_DIR/core.conf):
+#         fpga.rbf     the core image (phase 2), which U-Boot loads from the SD card
+#         fpga.dtbo    its device tree overlay
+#   and for the base design only:
+#         hps.rpd      the HPS image (phase 1), for the flash: raw bytes, as U-Boot and
+#                      Linux write it
+#         hps.jic      the same, as Altera's programmer writes it over JTAG
+# A derived design has no HPS image of its own: its core image loads on the base's.
+#
 # Needs: Docker, git, network access; out/u-boot/u-boot-spl-dtb.hex from Task B (for the
 #        last step only). The first run pulls the Quartus image (17.5 GiB).
 #
-# The design is Altera's reference design at the tag in fpga/ALTERA_TAG with this repository's changes
-# applied by fpga/apply.sh. It is fetched and prepared once in
-# work/agilex5-ed-hps-baseline. To start again from clean, delete that directory.
-# To build from a repository that already holds the applied design (jclark/agilex5-ed-hps-baseline), set
-# DESIGN_REPO and DESIGN_REF.
+# Settings, as environment variables, all optional:
+#   OUT          where the results go (default out/fpga/<name> in this repository)
+#   WORK         where the design is fetched and built (default work/fpga/<name>)
+#   DESIGN_REPO, DESIGN_REF
+#                build the base from a repository that already holds the applied design
+#                (jclark/agilex5-ed-hps-baseline) instead of applying the changes
+#
+# The design is Altera's reference design at the tag in fpga/ALTERA_TAG with this
+# repository's changes applied by fpga/apply.sh, and then the derived design's. It is fetched
+# and prepared once in WORK. To start again from clean, delete that directory.
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
-work=$top/work; out=$top/out/fpga
 q=$top/fpga/q
 fail() { echo "fpga/build.sh: $*" >&2; exit 1; }
-mkdir -p "$work" "$out"
+[ $# -le 1 ] || { sed -n '2,29p' "$0"; exit 2; }
 
+name=base; core=
+if [ $# -eq 1 ]; then
+    core=$(cd "$1" && pwd) || fail "no directory $1"
+    [ -f "$core/core.conf" ] || fail "no core.conf in $core"
+    NAME=
+    # shellcheck disable=SC1091
+    . "$core/core.conf"
+    [ -n "$NAME" ] || fail "core.conf does not set NAME"
+    name=$NAME
+fi
+boot=$(cat "$top/fpga/BOOT_NAME")
+work=${WORK:-$top/work/fpga/$name}; out=${OUT:-$top/out/fpga/$name}
+mkdir -p "$work" "$out"
+work=$(cd "$work" && pwd); out=$(cd "$out" && pwd)
+# The container sees this repository; it must also see these.
+DE25_Q_MOUNTS="$work $out $core"
+export DE25_Q_MOUNTS
+
+applied=${DESIGN_REPO:+yes}
 DESIGN_REPO=${DESIGN_REPO:-https://github.com/altera-fpga/agilex5-ed-hps-baseline}
 DESIGN_REF=${DESIGN_REF:-$(cat "$top/fpga/ALTERA_TAG")}
+[ -z "$applied" ] || [ -z "$core" ] || fail "DESIGN_REPO is for the base design only"
 src=$work/agilex5-ed-hps-baseline
 design=$src/terasic-de25-nano-devkit/baseline-a55
 
@@ -31,8 +62,11 @@ design=$src/terasic-de25-nano-devkit/baseline-a55
 [ -d "$src/.git" ] || git clone --depth 1 -b "$DESIGN_REF" "$DESIGN_REPO" "$src"
 [ -f "$design/top.qpf" ] || fail "no design in $design"
 if [ ! -e "$design/src/hdmi_scanout.sv" ]; then
-    (cd "$design" && "$q" "$top/fpga/apply.sh" .)
+    # shellcheck disable=SC2086
+    (cd "$design" && "$q" "$top/fpga/apply.sh" . $core)
 fi
+have=base; [ ! -f "$design/core-name.txt" ] || have=$(cat "$design/core-name.txt")
+[ "$have" = "$name" ] || fail "$design holds the design $have, not $name: delete $work"
 
 # 2. Compile. Altera's Makefile generates the Platform Designer output, builds the firmware of
 # the design's self-test processor, and runs synthesis, fitter, timing analysis and assembler.
@@ -42,16 +76,22 @@ fi
 sof=$design/output_files/baseline_a55.sof
 [ -f "$sof" ] || fail "the compile did not produce $sof"
 
-# 3. Overlay: independent of the compile; it reads the video block's source.
-(cd "$top" && "$q" "$top/fpga/overlay/build.sh" "$out/fpga.dtbo")
+# 3. Overlay: independent of the compile. The base's, which reads the video block's source,
+# then the derived design's fragments, then the names of the core and of the boot package
+# whose HPS image it loads on.
+# With dtc on this machine it is built here; otherwise in the Quartus container, which has it.
+ovl=; command -v dtc >/dev/null || ovl=$q
+# shellcheck disable=SC2046,SC2086
+(cd "$top" && $ovl "$top/fpga/overlay/build.sh" "$out/fpga.dtbo" "$name" "$boot" \
+    $([ -z "$core" ] || ls "$core"/overlay/*.dtso 2>/dev/null))
 
-# 4. Combine with the first-stage loader from Task B. One command gives the files:
-#    de25-nano.hps.jic   first-stage image (the SoC's configuration and the loader), for the flash,
+# 4. Split the compiled design, with the SPL from Task B. One command gives the files:
+#    de25-nano.hps.jic   the HPS image (the SoC's configuration and the SPL), for the flash,
 #                        in the form Altera's programmer writes over JTAG
 #    de25-nano.rpd       the same flash contents as raw bytes (Raw Programming Data), from the
 #                        start of the flash to the end of the data; bitswap=on gives the
 #                        bytes as the flash holds them
-#    de25-nano.core.rbf  the fabric, loaded by U-Boot from the SD card
+#    de25-nano.core.rbf  the core image, loaded by U-Boot from the SD card
 # flash_loader names this board's FPGA as Quartus 26.1.1's programmer identifies it.
 spl=$top/out/u-boot/u-boot-spl-dtb.hex
 [ -f "$spl" ] || fail "no $spl: build Task B first (u-boot/build.sh)"
@@ -59,8 +99,11 @@ spl=$top/out/u-boot/u-boot-spl-dtb.hex
     -o device=MT25QU128 -o flash_loader=A5EB013BB23BCS -o hps_path="$spl" -o mode=ASX4 -o hps=1 \
     -o bitswap=on)
 cp "$design/out/de25-nano.core.rbf" "$out/fpga.rbf"
-cp "$design/out/de25-nano.hps.jic" "$out/de25-nano.hps.jic"
-cp "$design/out/de25-nano.rpd" "$out/de25-nano.hps.rpd"
-# U-Boot writes the flash in 4-byte words.
-[ $(( $(stat -c %s "$out/de25-nano.hps.rpd") % 4 )) -eq 0 ] || fail "the size of de25-nano.hps.rpd is not a multiple of 4"
+echo "$boot" > "$out/boot-name"
+if [ -z "$core" ]; then
+    cp "$design/out/de25-nano.hps.jic" "$out/hps.jic"
+    cp "$design/out/de25-nano.rpd" "$out/hps.rpd"
+    # U-Boot writes the flash in 4-byte words.
+    [ $(( $(stat -c %s "$out/hps.rpd") % 4 )) -eq 0 ] || fail "the size of hps.rpd is not a multiple of 4"
+fi
 ls -l "$out"

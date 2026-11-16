@@ -1,0 +1,8 @@
+/*
+ * Example: what a derived design adds to the base core's overlay. A real design describes
+ * its hardware here; this one only leaves a note that Linux shows as
+ * /proc/device-tree/chosen/example,note.
+ */
+&{/chosen} {
+	example,note = "JP1 pin 31 carries a 1 Hz square wave";
+};

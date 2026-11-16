@@ -1,18 +1,30 @@
 #!/bin/sh
-# Build the device tree overlay for the FPGA design: OUT (default out/fpga/fpga.dtbo at the
-# top of the repository).
+# Build the device tree overlay for a core image.
+#
+# Usage, from anywhere:  fpga/overlay/build.sh [OUT [NAME BOOT [FRAGMENT.dtso...]]]
+#   OUT       the overlay (default out/fpga/base/fpga.dtbo at the top of the repository)
+#   NAME      the core's name (default base)
+#   BOOT      the name of the boot package whose HPS image the core loads on (default: the
+#             name in fpga/BOOT_NAME)
+#   FRAGMENT  a derived design's device tree source, added after the base's
+#
+# The overlay is the base's template, the fragments, and two properties in /chosen that tell
+# Linux which core is running: de25-nano,core and de25-nano,boot. U-Boot applies the overlay
+# only when the core image has loaded.
 #
 # The frame buffer's address and size are taken from src/hdmi_scanout.sv, the logic that reads
 # it, so the overlay cannot disagree with the design.
 #
 # Needs dtc (Debian/Ubuntu package device-tree-compiler), sed and a POSIX shell. fpga/build.sh
 # runs it in the Quartus container, which has dtc.
-# Usage, from anywhere:  fpga/overlay/build.sh [OUT]
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 top=$(dirname "$here")
 sv=$top/src/hdmi_scanout.sv
-out=${1:-$(dirname "$top")/out/fpga/fpga.dtbo}
+out=${1:-$(dirname "$top")/out/fpga/base/fpga.dtbo}
+name=${2:-base}
+boot=${3:-$(cat "$top/BOOT_NAME")}
+if [ $# -ge 3 ]; then shift 3; else set --; fi
 
 fail() { echo "overlay/build.sh: $*" >&2; exit 1; }
 
@@ -54,11 +66,17 @@ sed -e "s/@FB_UNIT@/$base_hex/g" \
     -e "s/@FB_WIDTH@/$width/g" \
     -e "s/@FB_HEIGHT@/$height/g" \
     -e "s/@FB_STRIDE@/$stride/g" \
-    "$here/de25-nano-fabric.dtso.in" > "$tmp"
+    "$here/de25-nano-base.dtso.in" > "$tmp"
 if grep -n '@[A-Z_]*@' "$tmp" >&2; then fail "a name in the template was not filled in"; fi
+for f in "$@"; do
+    [ -f "$f" ] || fail "no $f"
+    { printf '\n/* From %s */\n' "${f##*/}"; grep -v -e '^/dts-v1/;' -e '^/plugin/;' "$f"; } >> "$tmp"
+done
+# Which core image this overlay belongs to, for de25-fpga.
+printf '\n&{/chosen} {\n\tde25-nano,core = "%s";\n\tde25-nano,boot = "%s";\n};\n' "$name" "$boot" >> "$tmp"
 
 mkdir -p "$(dirname "$out")"
 # The two checks switched off cannot work in an overlay: dtc does not see the
 # cell sizes of the nodes the fragments are applied to.
 dtc -@ -W no-ranges_format -W no-avoid_default_addr_size -I dts -O dtb -o "$out" "$tmp"
-echo "$out: frame buffer ${width}x${height} at 0x$base_hex, $size bytes, $reserved reserved"
+echo "$out: core $name on boot $boot; frame buffer ${width}x${height} at 0x$base_hex, $size bytes, $reserved reserved"

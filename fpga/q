@@ -9,7 +9,8 @@
 # (fpga/quartus/Dockerfile). The first use pulls 17.5 GiB.
 #
 # The whole repository is visible in the container at the same path. So is the current
-# directory when it is somewhere else (a clone of the design, for apply.sh).
+# directory when it is somewhere else (a clone of the design, for apply.sh), and every
+# directory named in DE25_Q_MOUNTS.
 #
 # Quartus keeps its licence in work/quartus-home: it fetches a free licence for this FPGA
 # family over HTTPS the first time the fitter runs. The licence is tied to a network card's
@@ -24,12 +25,19 @@ qhome=$top/work/quartus-home
 mkdir -p "$qhome"
 docker build -q -t de25-nano-quartus "$top/fpga/quartus" >/dev/null
 # The current directory, when it is outside the repository: mount the top of its git
-# repository, or the directory itself.
+# repository, or the directory itself. So are the directories named in DE25_Q_MOUNTS
+# (separated by spaces; fpga/build.sh sets it for a design outside the repository).
 extra=
 case $PWD/ in
     "$top"/*) ;;
     *) d=$(git rev-parse --show-toplevel 2>/dev/null || pwd); extra="-v $d:$d" ;;
 esac
+for d in ${DE25_Q_MOUNTS:-}; do
+    case $d/ in
+        "$top"/*) ;;
+        *) extra="$extra -v $d:$d" ;;
+    esac
+done
 if [ "${1:-}" = --usb ]; then
     shift
     exec docker run --rm --net=host --privileged -v /dev/bus/usb:/dev/bus/usb \

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR MIT)
 /*
- * Device tree overlay for the Terasic DE25-Nano with this FPGA design loaded.
+ * Device tree overlay for the Terasic DE25-Nano with the base core image loaded.
  *
  * The board's own device tree (socfpga_agilex5_de25_nano.dts in the kernel)
  * describes what is wired to the SoC's own pins. This overlay adds what
@@ -28,8 +28,8 @@
 };
 
 /*
- * EMAC0's auxiliary snapshot trigger 1 comes from the FPGA: JP1 pin 9
- * (PPS in). The PPS output is on pin 7.
+ * EMAC0's auxiliary snapshot trigger 1 comes from the FPGA: JP1 pin 14
+ * (PPS in). The PPS output is on pin 6.
  */
 &gmac0 {
 	altr,f2h-ptp-aux-trig;
@@ -57,13 +57,23 @@
 	};
 };
 
-/* Spare I2C bus (I2C_EMAC0) on JP1: pin 3 SDA, pin 5 SCL. */
+/* I2C_EMAC0 on JP1: pin 36 SCL, pin 38 SDA. */
 &i2c2 {
 	status = "okay";
 };
 
-/* SPI master 0 on JP1: pin 19 MOSI, 21 MISO, 23 SCLK, 24 SS0. */
+/* SPI master 0 on JP1: pin 33 SCLK, 35 MOSI, 37 MISO, 39 SS0, 40 SS1. */
 &spi0 {
+	status = "okay";
+};
+
+/* I2C_EMAC1 on JP2: pin 36 SCL, pin 38 SDA. */
+&i2c3 {
+	status = "okay";
+};
+
+/* SPI master 1 on JP2: pin 33 SCLK, 35 MOSI, 37 MISO, 39 SS0, 40 SS1. */
+&spi1 {
 	status = "okay";
 };
 
