@@ -58,10 +58,13 @@ yes=no
 
 fail() { echo "de25-fpga: $*" >&2; exit 1; }
 usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
-need_root() { [ -n "$root" ] || [ "$(id -u)" = 0 ] || fail "run it as root (sudo de25-fpga $*)"; }
+need_root() { [ -n "$root" ] || [ "$(id -u)" = 0 ] || fail "this needs root: sudo de25-fpga $*"; }
 fat_mounted() { [ -n "$root" ] || mountpoint -q "$fat"; }
 need_fat() { fat_mounted || fail "$fat is not mounted"; }
-menu_update() { [ -n "$root" ] || u-boot-update >/dev/null; }
+menu_update() {     # rewrite the boot menu; u-boot-update's own output only if it fails
+    [ -z "$root" ] || return 0
+    log=$(u-boot-update 2>&1) || { echo "$log" >&2; fail "u-boot-update failed"; }
+}
 crc32_of() {    # crc32_of FILE: 8 hex digits, from the trailer gzip writes
     gzip -1 -c "$1" | tail -c 8 | head -c 4 | od -An -tx4 | tr -d ' \n'
 }
@@ -69,7 +72,7 @@ confirm() {     # confirm QUESTION: ask on the terminal, unless --yes was given
     [ "$yes" = yes ] && return 0
     printf '%s [y/N] ' "$1"
     read -r answer || answer=
-    case $answer in y|Y|yes) ;; *) fail "nothing changed" ;; esac
+    case $answer in y|Y|yes) echo ;; *) echo "Nothing was changed." >&2; exit 1 ;; esac
 }
 put() {         # put FROM TO: copy, compare, and only then replace TO
     cp "$1" "$2.new"
@@ -139,25 +142,14 @@ pending_boot() { # the boot package a waiting flash write is for, or nothing
     [ -f "$request" ] || return 0
     sed -n 's/^flash_new_boot=//p' "$request_txt" 2>/dev/null || true
 }
-# fits BOOT: can it be seen that a core for that boot package will load? Sets $why.
+# fits BOOT: can it be seen that a core for that boot package will load?
 fits() {
-    if [ "$(running_boot)" = "$1" ]; then
-        why="the core now running loads on the same HPS image"; return 0
-    fi
-    if [ "$(pending_boot)" = "$1" ]; then
-        why="a flash write of that HPS image is waiting for the next boot"; return 0
-    fi
-    if [ -f "$(boot_dir "$1")/hps.rpd" ] && flash_holds "$(boot_dir "$1")/hps.rpd"; then
-        why="the flash holds that HPS image"; return 0
-    fi
-    if ! flash_handed_over; then
-        why="the flash holds the factory contents, or others that keep it from the SoC"
-    elif [ ! -r "$mtd" ]; then
-        why="the flash cannot be read (not root)"
-    else
-        why="the flash does not hold the HPS image of de25-nano-boot-$1 as installed, and no core that needs it is running"
-    fi
-    return 1
+    # The core now running loads on the same HPS image.
+    [ "$(running_boot)" != "$1" ] || return 0
+    # A flash write of that HPS image is waiting for the next boot.
+    [ "$(pending_boot)" != "$1" ] || return 0
+    # The flash holds that HPS image, byte for byte.
+    [ -f "$(boot_dir "$1")/hps.rpd" ] && flash_holds "$(boot_dir "$1")/hps.rpd"
 }
 
 # ---- Changing things
@@ -201,25 +193,26 @@ need_whole_flash() {
 }
 
 # Writing the flash with a boot package's HPS image is two steps, so that whoever asks can put
-# other things in place between the yes and the write: flash_ask explains and asks;
-# flash_do does it, puts the package's u-boot.itb and boot.scr on the card, and sets $after
-# to what the user has to do next.
-flash_ask() {   # flash_ask BOOT
+# other things in place between the yes and the write: flash_ask says how it will be done
+# and asks (the caller has said why); flash_do does it, puts the package's u-boot.itb and
+# boot.scr on the card, and sets $after to what the user has to do next.
+flash_ask() {
     if ! flash_handed_over; then
         cat <<EOF
-This board's flash holds the factory contents, or others that keep it from the SoC.
-At the next boot U-Boot will save what the flash holds now to the card
-($fat/saved-<crc32>.rpd), then write the HPS image of de25-nano-boot-$1 to the
-flash, which should take about two minutes.
+This will be done at the next boot and takes about two minutes. The
+factory flash contents are saved to the SD card first. After
+reflashing, the board must be power cycled.
+
 EOF
-        confirm "Write the flash at the next boot?"
+        confirm "Reflash the board at the next boot?"
     else
         need_whole_flash
         cat <<EOF
-This writes the HPS image of de25-nano-boot-$1 to the board's flash, now, from Linux.
-What the flash holds now is not the factory contents and is not saved.
+This can be done from Linux. After reflashing, the board must be shut
+down and power cycled.
+
 EOF
-        confirm "Write the flash now?"
+        confirm "Reflash the board now?"
     fi
 }
 flash_do() {    # flash_do BOOT
@@ -235,17 +228,19 @@ flash_do() {    # flash_do BOOT
         sync
         mv "$request.new" "$request"
         sync
-        after="The flash will be written at the next boot. Reboot when ready (sudo reboot), then watch
-the LED beside the HPS KEY button:
-  one second on, one second off   working: leave the power alone
-  steady on                       done: unplug the power, then plug it in again
-  four times a second             it failed: the serial console says why"
+        after="The board will be reflashed at the next boot. Reboot when ready:
+    sudo reboot
+then watch the LED beside the HPS KEY button:
+    one second on, one second off   working: leave the power connected
+    steady on                       done: power cycle the board
+    four blinks a second            failed: see the serial console"
     else
         mtd_write "$rpd"
         card_put "$1"
-        after="The flash is written and verified, and u-boot.itb and boot.scr on the card are renewed.
-The chip takes up the new contents only at power-on: shut down (sudo systemctl halt),
-then unplug the board's power and plug it in again. Do not restart without the power cycle."
+        after="
+The board has been reflashed. Shut it down and power cycle it now:
+    sudo systemctl halt
+then unplug the power and plug it in again. Do not just reboot."
     fi
 }
 
@@ -286,20 +281,22 @@ select)
     boot=$(core_boot "$arg")
     if fits "$boot"; then
         put_core "$arg"
-        echo "The core $arg fits: $why."
-        echo "It will be loaded from the next boot on."
-        [ -z "$(pending_boot)" ] || echo "The flash write is still waiting for that boot."
+        echo "The \"$arg\" FPGA core will be loaded from the next boot on."
+        if [ -n "$(pending_boot)" ]; then
+            echo "The board will still be reflashed at that boot, as asked earlier."
+        else
+            echo "The board does not need reflashing."
+        fi
     else
         need_boot "$boot"
         cat <<EOF
-The core $arg needs the HPS image of de25-nano-boot-$boot in the flash, and it cannot be
-seen to be there: $why.
+The board needs to be reflashed to work with the "$arg" FPGA core.
 EOF
-        flash_ask "$boot"
+        flash_ask
         put_core "$arg"
         flash_do "$boot"
         echo "$after"
-        echo "After that the core $arg is loaded at every boot."
+        echo "After that, the \"$arg\" FPGA core is loaded at every boot."
     fi
     ;;
 disable)
@@ -307,7 +304,7 @@ disable)
     need_root disable
     need_fat
     remove_core
-    echo "No core will be loaded from the next boot on."
+    echo "No FPGA core will be loaded from the next boot on."
     ;;
 flash-write)
     need_root flash-write
@@ -317,29 +314,37 @@ flash-write)
     if flash_holds "$(boot_dir "$boot")/hps.rpd"; then
         remove_request
         if card_matches "$boot"; then
-            echo "The flash already holds the HPS image of de25-nano-boot-$boot, and the card its U-Boot: nothing to do."
+            echo "Nothing to do: the board is already flashed with de25-nano-boot-$boot."
         else
             card_put "$boot"
-            echo "The flash already holds the HPS image of de25-nano-boot-$boot: it is not written."
-            echo "u-boot.itb and boot.scr on the card have been renewed; they take effect at the next boot."
+            echo "The board is already flashed with de25-nano-boot-$boot and is not reflashed."
+            echo "U-Boot on the SD card has been updated and is used from the next boot."
         fi
         exit 0
     fi
-    flash_ask "$boot"
+    cat <<EOF
+The board will be reflashed with de25-nano-boot-$boot.
+EOF
+    flash_ask
     # A selected core that will not load on what is about to be written is not left selected.
     sel=$(selected_core)
-    dropped=
+    dropped=no
     if [ "$sel" = unknown ]; then
-        dropped="The core on the card was put there without de25-fpga select, so it cannot be seen to fit: it is deselected."
+        dropped=yes
     elif [ -n "$sel" ] && { [ ! -f "$(core_dir "$sel")/boot" ] || [ "$(core_boot "$sel")" != "$boot" ]; }; then
-        dropped="The selected core, $sel, does not load on this HPS image: it is deselected."
+        dropped=yes
     fi
-    [ -z "$dropped" ] || remove_core
+    [ $dropped = no ] || remove_core
     flash_do "$boot"
     echo "$after"
-    if [ -n "$dropped" ]; then
-        echo "$dropped"
-        echo "Cores for this HPS image: $(for c in $(core_names); do [ "$(core_boot "$c")" != "$boot" ] || printf '%s ' "$c"; done)(sudo de25-fpga select NAME)"
+    if [ $dropped = yes ]; then
+        cat <<EOF
+
+The FPGA core that was selected may not work on the reflashed board,
+so no core is selected now. To select one:
+    sudo de25-fpga select NAME
+Cores that work on the reflashed board: $(for c in $(core_names); do [ "$(core_boot "$c")" != "$boot" ] || printf '%s ' "$c"; done)
+EOF
     fi
     ;;
 flash-restore)
@@ -370,34 +375,38 @@ You must specify a file name: de25-fpga flash-restore FILE"
         [ "${file##*/}" = "saved-$crc.rpd" ] || fail "$file does not hold what its name says: its crc32 is $crc"
         ;;
     esac
-    echo "$file: crc32 $crc"
-    echo "This writes $file to the board's flash and stops a core being loaded at boot."
-    confirm "Write the flash now?"
+    cat <<EOF
+The board will be reflashed with the saved contents in
+$file
+(crc32 $crc). No FPGA core will be loaded afterwards.
+EOF
+    flash_ask
     remove_core
     remove_request
     mtd_write "$file"
     cat <<EOF
-The flash is written and verified. The chip takes up the new contents only at power-on:
-shut down (sudo systemctl halt), then unplug the board's power and plug it in again.
-Do not restart without the power cycle.
+
+The board has been reflashed. Shut it down and power cycle it now:
+    sudo systemctl halt
+then unplug the power and plug it in again. Do not just reboot.
 EOF
     ;;
 status)
     [ -z "$arg" ] || usage
     # The flash, and what goes with it on the card.
     if ! flash_handed_over; then
-        echo "Flash: kept from the SoC, as with the factory contents"
+        echo "Flash: factory contents (not readable from Linux)"
     elif [ ! -r "$mtd" ]; then
-        echo "Flash: handed to the SoC ($mtd); run status as root to see what it holds"
+        echo "Flash: run status with sudo to see what it holds"
     else
         b=$(flash_boot)
         if [ -n "$b" ]; then
             v=$(version_of "de25-nano-boot-$b")
-            echo "Flash: holds the HPS image of de25-nano-boot-$b${v:+ $v}, as installed"
+            echo "Flash: de25-nano-boot-$b${v:+ $v}, as installed"
         elif [ -n "$(running_boot)" ]; then
-            echo "Flash: holds an HPS image of de25-nano-boot-$(running_boot) (the running core loaded on it), not the build now installed"
+            echo "Flash: de25-nano-boot-$(running_boot), an earlier build than the one installed"
         else
-            echo "Flash: handed to the SoC ($mtd); it does not hold the HPS image of an installed boot package"
+            echo "Flash: not from an installed boot package"
         fi
     fi
     if fat_mounted; then
@@ -406,22 +415,22 @@ status)
             if card_matches "$b"; then found=$b; fi
         done
         if [ -n "$found" ]; then
-            echo "U-Boot on the card: that of de25-nano-boot-$found, as installed"
+            echo "U-Boot on the SD card: de25-nano-boot-$found, as installed"
         else
-            echo "U-Boot on the card: not that of an installed boot package"
+            echo "U-Boot on the SD card: not from an installed boot package"
         fi
     else
-        echo "U-Boot on the card: $fat is not mounted"
+        echo "U-Boot on the SD card: $fat is not mounted"
     fi
     if [ -f "$request" ] && flash_handed_over; then
-        echo "Flash write: $request is on the card, but U-Boot writes the flash only when it is kept from the SoC; a flash-write or select removes the file"
+        echo "Reflash: a stale request is on the SD card; select or flash-write clears it"
     elif [ -f "$request" ]; then
         b=$(pending_boot)
-        echo "Flash write: waiting for the next boot${b:+ (de25-nano-boot-$b)}"
+        echo "Reflash: at the next boot${b:+ (de25-nano-boot-$b)}"
     elif [ -f "$failed" ]; then
-        echo "Flash write: the last one failed while $(tr -d '\000' < "$failed" | sed -n 's/^failed_while=//p')"
+        echo "Reflash: the last one failed while $(tr -d '\000' < "$failed" | sed -n 's/^failed_while=//p')"
     else
-        echo "Flash write: none waiting"
+        :
     fi
     for f in "$fat"/saved-????????.rpd; do
         [ -f "$f" ] || continue
@@ -430,34 +439,37 @@ status)
     # The core.
     sel=$(selected_core); run=$(running_core)
     if [ -n "$sel" ] && [ ! -f "$dtbo/fpga.dtbo" ]; then
-        echo "Selected core: $sel, but its overlay is missing from $dtbo: run de25-fpga select or de25-fpga disable"
+        echo "Selected core: $sel, incompletely: its overlay is missing. Run select or disable"
     elif [ -z "$sel" ] && [ -f "$dtbo/fpga.dtbo" ]; then
-        echo "Selected core: none, but an overlay is left in $dtbo: run de25-fpga select or de25-fpga disable"
+        echo "Selected core: none, but an overlay was left behind. Run select or disable"
     elif [ -z "$sel" ]; then
         echo "Selected core: none"
     elif [ "$sel" = unknown ]; then
-        echo "Selected core: one put on the card without de25-fpga select (no $selected_txt)"
+        echo "Selected core: unknown (not selected with de25-fpga)"
     else
         v=$(version_of "de25-nano-core-$sel")
         echo "Selected core: $sel${v:+ (de25-nano-core-$sel $v)}"
     fi
     if [ -n "$run" ]; then
-        echo "Running core: $run, on the HPS image of de25-nano-boot-$(running_boot)"
+        echo "Running core: $run"
     elif unnamed_core_running; then
-        echo "Running core: one without a name (from before release 0.2, or put on the card by hand)"
+        echo "Running core: unknown (it carries no name)"
     else
         echo "Running core: none"
     fi
     if [ -n "$sel" ] && [ "$sel" != unknown ] && [ "$sel" != "$run" ]; then
         if [ "$(sed -n 's/^boot_id=//p' "$selected_txt" 2>/dev/null)" = "$(boot_id)" ]; then
-            echo "The core $sel will be loaded at the next boot."
+            echo
+            echo "The \"$sel\" FPGA core will be loaded at the next boot."
         elif ! flash_handed_over; then
-            echo "The core $sel was not loaded: the flash is not written yet."
+            echo
+            echo "The \"$sel\" FPGA core was not loaded: the board has not been reflashed yet."
         else
             cat <<EOF
-The core $sel was selected but is not running: the chip refused it, or U-Boot could not
-read it. If it was refused, the board will not restart until its power is cycled: unplug
-the power and plug it in again rather than rebooting.
+
+The "$sel" FPGA core is selected but was not loaded at this boot.
+The board may not restart until it is power cycled: unplug the power
+and plug it in again. Do not just reboot.
 EOF
         fi
     fi
@@ -473,22 +485,21 @@ hook)
         # card, if the flash already holds its HPS image.
         [ -n "$(boot_names)" ] || exit 0
         if ! flash_handed_over; then
-            echo "de25-fpga: the flash holds the factory contents: u-boot.itb and boot.scr on the card are left as they are."
+            echo "de25-fpga: U-Boot on the SD card is left as it is until the board is reflashed."
             exit 0
         fi
         b=$(flash_boot)
         if [ -z "$b" ]; then
             cat <<EOF
-de25-fpga: the flash does not hold the HPS image of an installed boot package, so
-u-boot.itb and boot.scr on the card are left as they are. To bring the board to the
-installed boot package, which writes the flash:
+de25-fpga: this boot package takes effect when the board is reflashed:
     sudo de25-fpga flash-write
+Until then the board keeps booting as it does now.
 EOF
         elif card_matches "$b"; then
-            echo "de25-fpga: the flash and the card hold de25-nano-boot-$b as installed."
+            :
         else
             card_put "$b"
-            echo "de25-fpga: the flash holds the HPS image of de25-nano-boot-$b as installed; u-boot.itb and boot.scr on the card have been renewed and take effect at the next boot."
+            echo "de25-fpga: U-Boot on the SD card has been updated and is used from the next boot."
         fi
         ;;
     core-configure)
@@ -502,12 +513,11 @@ EOF
         fi
         if fits "$(core_boot "$arg")"; then
             put_core "$arg"
-            echo "de25-fpga: the selected core, $arg, has been updated; the new one loads at the next boot."
+            echo "de25-fpga: the new \"$arg\" FPGA core will be loaded from the next boot on."
         else
             cat <<EOF
-de25-fpga: the selected core, $arg, has a new version that needs the HPS image of
-de25-nano-boot-$(core_boot "$arg") in the flash, and it cannot be seen to be there: $why.
-The card keeps the version it has. To change over, which writes the flash:
+de25-fpga: the new "$arg" FPGA core needs the board to be reflashed.
+Until then the board keeps loading the version it has. To change over:
     sudo de25-fpga select $arg
 EOF
         fi
@@ -515,7 +525,7 @@ EOF
     core-remove)
         [ -n "$arg" ] && [ "$(selected_core)" = "$arg" ] || exit 0
         remove_core
-        echo "de25-fpga: the selected core, $arg, is being removed: no core will be loaded from the next boot on."
+        echo "de25-fpga: \"$arg\" was the selected FPGA core: none will be loaded from the next boot on."
         ;;
     esac
     ;;

@@ -125,21 +125,37 @@ beside it as a package: [fpga/README.md](fpga/README.md), "Building on this desi
 
 ## Order of work
 
-One command does all of it:
+`make` does all of it, and only what is needed:
 
 ```
-./build.sh          # everything; add --test to boot the result in QEMU and check it
+make -j3            # everything that is out of date, up to the card image
+make -j3 test       # the same, then boot the image in QEMU and check it
 ```
 
-It runs Tasks B, K and F at the same time, then P and I, prints a line as each starts and
-finishes, and keeps each task's output in `work/logs/`. With `--no-fpga` it leaves Task F
-out. `--test` adds [the test in QEMU](sdimage/README.md#testing-the-image-without-a-board),
-which checks the image from the kernel upwards; what comes before the kernel, and the
-board's own hardware, can only be tested on a board.
+A task is run again only when something it is made from has changed: its own files in this
+repository, or the output of a task it uses. So after a change to the packages, `make`
+rebuilds the packages and the image and leaves U-Boot, the kernel and the FPGA design
+alone, and a second `make` straight after the first does nothing. `-j3` runs Tasks B, K
+and F at the same time. Each task prints a line when it starts and when it finishes, and
+keeps its output in `work/logs/`.
 
-The tasks can also be run one at a time. Tasks B, K and F do not depend on each other until
-the last step of Task F, so they can be started together. Tasks P and I come last, in that
-order.
+| | |
+|---|---|
+| `make u-boot`, `make kernel`, `make fpga`, `make packages`, `make image` | One task, and whatever it needs that is out of date |
+| `make test` | The image, and [the test in QEMU](sdimage/README.md#testing-the-image-without-a-board), which checks it from the kernel upwards. What comes before the kernel, and the board's own hardware, can only be tested on a board. |
+| `make example` | The example design built on the base |
+| `make release VERSION=v0.2` | The files of a release, in `out/release-v0.2/` |
+| `make NOFPGA=1` | Without Task F |
+
+Two things that a task is made from are outside the repository, and the Makefile looks
+after them. The kernel's source is a branch that moves: each run asks where the branch is,
+and the kernel is rebuilt when it has moved. Altera's own Makefile for the FPGA design does
+not notice changed sources: when a file under `fpga/` has changed, the Makefile deletes
+the design's build tree and builds it again. To force a task, delete its output:
+`rm -rf out/kernel`, for instance.
+
+The tasks can also be run by their own scripts. Tasks B, K and F do not depend on each
+other until the last step of Task F. Tasks P and I come last, in that order.
 
 ```
 u-boot/build.sh     # Task B, a few minutes

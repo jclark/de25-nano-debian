@@ -61,6 +61,7 @@ them on the machine, Docker: the packages are then made in the container of Task
 | `fpga-tools/de25-hdmi-init`, `de25-hdmi-init.service` | The HDMI transmitter's set-up |
 | `boot/boot.cmd` | The U-Boot script, wrapped into `boot.scr` |
 | `VERSIONS` | The three packages' versions |
+| `release.sh` | Collects the files of a release |
 | `build.sh`, `inner.sh`, `mkdeb-core` | The build: the packages are put together with `dpkg-deb` from files that are already built |
 
 ### Versions
@@ -78,7 +79,13 @@ image byte for byte: a boot package made again without need would have every boa
 that its flash wants writing. So `build.sh` does not make the boot package again when
 `out/packages/` already has one with the version in `VERSIONS`; `REBUILD_BOOT=1` overrides
 that. For a release, start from the previous release's boot package in `out/packages/`
-unless `BOOT_VERSION` was raised.
+unless `BOOT_VERSION` was raised. Beside the boot package the script keeps its HPS image
+in the form Altera's programmer takes, `de25-nano-boot-base_<version>.hps.jic`, for
+[flash-jtag.md](../flash-jtag.md).
+
+`release.sh` (`make release VERSION=v0.2`) collects the files of a release in
+`out/release-<version>/`: the image compressed, the kernel package, these packages, that
+`.hps.jic`, the kernel's configuration and symbols, and their checksums.
 
 ## Commands
 

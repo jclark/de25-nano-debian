@@ -24,6 +24,13 @@ mkdir -p "$work" "$out"
 LINUX_REPO=${LINUX_REPO:-https://github.com/jclark/linux}
 LINUX_BRANCH=${LINUX_BRANCH:-de25-nano-mainline/v7.4}
 
+# --head: print the commit the branch is at, or nothing if there is no answer. The Makefile
+# uses it to tell whether the kernel has to be built again.
+if [ "${1:-}" = --head ]; then
+    timeout 60 git ls-remote "$LINUX_REPO" "refs/heads/$LINUX_BRANCH" 2>/dev/null | cut -f1 || true
+    exit 0
+fi
+
 if [ ! -d "$work/linux/.git" ]; then
     git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_REPO" "$work/linux"
 elif [ "$(git -C "$work/linux" remote get-url origin 2>/dev/null)" = "$LINUX_REPO" ] &&

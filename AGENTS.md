@@ -21,8 +21,9 @@ with Altera, and it is a 17 GB download and 38 GB on disk. Do not change
 
 Order:
 
-- `./build.sh --test` does everything in the right order and tests the image in QEMU. Run
-  it as a background job and report its lines as they come. The tasks one at a time:
+- `make -j3 test` builds whatever is out of date, in the right order, and tests the image in
+  QEMU. Run it as a background job and report its lines as they come. After a change, run
+  it again: it rebuilds only what the change affects. The tasks one at a time:
 - Tasks B, K and F are independent until the last step of Task F. Start them together, as
   background jobs, and report as each finishes: `u-boot/build.sh`, `kernel/build.sh`,
   `fpga/build.sh` (stage 2 only).
@@ -31,6 +32,8 @@ Order:
 - `packages/build.sh` next, then `sdimage/build.sh` last. Without Task F they make only the
   tools package, and the image without the boot package and the core.
 - Do not edit a build script while it is running: the shell reads it as it goes.
+- A new file that a task is made from needs no entry in the Makefile if it is in the task's
+  directory; a dependency on another directory does.
 
 The scripts fetch sources into `work/` and write results to `out/`. Do not edit what is under
 `work/`, and do not change a pinned commit or tag to get past a failure. If a script fails,
