@@ -4,10 +4,9 @@
 # Usage: sdimage/build.sh
 # Output: out/sdimage/de25-nano.img          the complete image, for any board
 #     or: out/sdimage/de25-nano-nofpga.img   when Task F has not been built: the same image
-#                                            without the FPGA design, its overlay and the
-#                                            first-stage image
-# Needs: out/u-boot and out/kernel (Tasks B and K), and out/fpga (Task F) for the complete image.
-#        Docker; on a host that is not arm64, qemu-user binfmt for aarch64.
+#                                            without the boot package and the base core
+# Needs: out/kernel (Task K) and out/packages (Task P); for the image without Task F also
+#        out/u-boot (Task B). Docker; on a host that is not arm64, qemu-user binfmt for aarch64.
 #
 # Settings, as environment variables, all optional. Without them the image is the same for
 # everybody, and the first boot sets up what differs (see sdimage/README.md):
@@ -22,18 +21,21 @@ fail() { echo "sdimage/build.sh: $*" >&2; exit 1; }
 in=$top/work/sdimage-input; out=$top/out/sdimage
 rm -rf "$in"; mkdir -p "$in" "$out"
 need() { [ -f "$1" ] || fail "no $1: build $2 first"; }
-need "$top/out/u-boot/u-boot.itb" "Task B (u-boot/build.sh)"
 deb=$(ls "$top"/out/kernel/linux-image-*_arm64.deb 2>/dev/null | head -n 1)
 [ -n "$deb" ] || fail "no kernel package in $top/out/kernel: build Task K (kernel/build.sh) first"
-cp "$top/out/u-boot/u-boot.itb" "$deb" "$in/"
+tools=$(ls "$top"/out/packages/de25-nano-fpga-tools_*.deb 2>/dev/null | head -n 1)
+[ -n "$tools" ] || fail "no de25-nano-fpga-tools package in $top/out/packages: build Task P (packages/build.sh) first"
+cp "$deb" "$tools" "$in/"
 name=de25-nano.img
-if [ -f "$top/out/fpga/fpga.rbf" ] && [ -f "$top/out/fpga/fpga.dtbo" ]; then
-    need "$top/out/fpga/de25-nano.hps.rpd" "Task F (fpga/build.sh)"
-    cp "$top/out/fpga/fpga.rbf" "$top/out/fpga/fpga.dtbo" "$in/"
-    cp "$top/out/fpga/de25-nano.hps.rpd" "$in/hps-first.rpd"
+boot=$(ls "$top"/out/packages/de25-nano-boot-*.deb 2>/dev/null | head -n 1)
+core=$(ls "$top"/out/packages/de25-nano-core-base_*.deb 2>/dev/null | head -n 1)
+if [ -n "$boot" ] && [ -n "$core" ]; then
+    cp "$boot" "$core" "$in/"
 else
     name=de25-nano-nofpga.img
-    echo "sdimage/build.sh: no out/fpga/fpga.rbf and fpga.dtbo (Task F): building $name"
+    echo "sdimage/build.sh: no boot and core packages in out/packages (Tasks F and P): building $name"
+    need "$top/out/u-boot/u-boot.itb" "Task B (u-boot/build.sh)"
+    cp "$top/out/u-boot/u-boot.itb" "$top/packages/boot/boot.cmd" "$in/"
 fi
 if [ -n "${SSH_KEYS:-}" ]; then
     [ -s "$SSH_KEYS" ] || fail "SSH_KEYS=$SSH_KEYS is missing or empty"

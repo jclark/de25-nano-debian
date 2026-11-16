@@ -8,19 +8,21 @@
 #                    the kernel as a Debian package (kernel, modules, device trees), from the
 #                    kernel's own "make bindeb-pkg"; the board's device tree in it must be
 #                    built with symbols
-#   u-boot.itb       U-Boot and TF-A, built from Terasic's source with the changes in u-boot/; it has to
-#                    match the first-stage loader in the board's QSPI flash
+#   de25-nano-fpga-tools_<version>_all.deb
+#                    de25-flash, de25-fpga, and the fan and HDMI scripts (Task P)
+#   de25-nano-boot-<name>_<version>_arm64.deb     optional, both or neither (Task P): the
+#   de25-nano-core-<name>_<version>_arm64.deb       boot package (the HPS image for the flash,
+#                      u-boot.itb, boot.scr) and one or more core packages. They are installed
+#                      and not put into effect: that is "de25-flash write" and "de25-fpga
+#                      select", on the board.
+#   u-boot.itb       without a boot package: U-Boot and TF-A from Task B; it has to match the
+#   boot.cmd           SPL in the board's QSPI flash; and the source of the boot script
 #   config           optional, the kernel configuration
 #   authorized_keys  optional, ssh keys for the user
-#   fpga.rbf         optional, all three or none: the FPGA design (core image), the device
-#   fpga.dtbo          tree overlay built with the design, and the first-stage image for the
-#   hps-first.rpd      flash. They go into /usr/lib/de25-nano and are not used until
-#                      "de25-fpga enable" is run on the board.
 #
-# Without them the image has no FPGA design: console and network only, on any board. The files
-# for the fan and HDMI are installed all the same and stay idle. To add the design later, on
-# the card: copy fpga.rbf, fpga.dtbo and hps-first.rpd to /usr/lib/de25-nano and run
-# "de25-fpga enable".
+# Without a boot package and a core the image gives console and network only, on any board.
+# The commands and the files for the fan and HDMI are installed all the same and stay idle.
+# To add them later, on the card: install the two packages (sudo apt install ./*.deb).
 #
 # Settings, as environment variables (defaults in mkimage-inner.sh):
 #   SUITE (trixie)  HOSTNAME_ (de25-nano)  USER_ (debian)
@@ -33,7 +35,7 @@
 #
 # Needs Docker, and on a host that is not arm64, qemu-user binfmt for aarch64.
 set -eu
-[ $# -eq 2 ] || { sed -n '2,34p' "$0"; exit 2; }
+[ $# -eq 2 ] || { sed -n '2,38p' "$0"; exit 2; }
 here=$(dirname "$(readlink -f "$0")")
 in=$(readlink -f "$1"); out=$(readlink -f "$2"); mkdir -p "$out"
 docker build -q -t de25-nano-sdimage "$here" >/dev/null

@@ -12,15 +12,17 @@ U_BOOT_PROMPT="0"
 U_BOOT_TIMEOUT="30"
 
 # The kernel command line, after root=, which is taken from /etc/fstab.
-# console=tty0 is the HDMI console when the FPGA design is loaded; the last console named,
-# the serial one, is where /dev/console goes.
-U_BOOT_PARAMETERS="rw rootwait console=tty0 console=ttyS0,115200 earlycon"
+# console=tty0 is the HDMI console when a core image with the video block is loaded; the
+# last console named, the serial one, is where /dev/console goes. 8250.nr_uarts=8 lets a
+# core add serial ports of its own: Linux otherwise stops at four.
+U_BOOT_PARAMETERS="rw rootwait console=tty0 console=ttyS0,115200 earlycon 8250.nr_uarts=8"
 
 # Device tree: each kernel package brings its own, in /usr/lib/linux-image-<release>/, and the
 # menu names that directory. U-Boot loads from it the file named by its fdtfile variable,
 # which /boot/firmware/boot.scr sets.
 #U_BOOT_FDT_DIR="/usr/lib/linux-image-"
 
-# Overlays: every *.dtbo in /boot/dtbo is applied to the device tree. The overlay for the FPGA
-# design, fpga.dtbo, goes there together with fpga.rbf in /boot/firmware.
+# Overlays: every *.dtbo in /boot/dtbo is applied to the device tree. The overlay of the
+# selected core image, fpga.dtbo, goes there together with fpga.rbf in /boot/firmware
+# (de25-fpga select).
 #U_BOOT_FDT_OVERLAYS_DIR="/boot/dtbo/"
