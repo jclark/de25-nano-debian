@@ -9,8 +9,8 @@
 # with the kernel from out/kernel, which is built from the standard arm64 configuration and
 # so runs there too. That checks: the first boot's set-up, that nothing fails to start, that
 # the packages are installed properly and install again on a running system, the man pages,
-# and de25-flash and de25-fpga on a machine that looks like a board with the factory flash
-# contents (no /dev/mtd0), up to the request for a flash write that U-Boot would carry out.
+# and de25-fpga on a machine that looks like a board with the factory flash contents (no
+# /dev/mtd0), up to the request for a flash write that U-Boot would carry out.
 #
 # Needs qemu-system-aarch64, mtools, dpkg-deb and ssh on this machine, or else Docker.
 # About five minutes: the arm64 CPU is emulated.

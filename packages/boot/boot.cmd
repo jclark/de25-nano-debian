@@ -32,7 +32,7 @@ if test "${qspi_clock}" = "<0x00000000>"; then
     setenv flash_sdm yes
 fi
 
-# A flash write asked for with "de25-flash write": the file write-on-boot.rpd beside this
+# A flash write asked for with "de25-fpga select" or "de25-fpga flash-write": the file write-on-boot.rpd beside this
 # script holds the new flash contents, and write-on-boot.txt their crc32. It is done here,
 # through the SDM, on a board whose flash the SDM keeps. The LED wired to the SoC (HPS_LED)
 # shows how it is going:
@@ -46,7 +46,7 @@ fi
 # is read back from the card or the flash; 0x98000000 the small text files.
 if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
     led hps_led0 blink 2000
-    echo "*** Flash write requested (de25-flash write). Do not unplug the power. ***"
+    echo "*** Flash write requested (de25-fpga). Do not unplug the power. ***"
     setenv flash_ok yes
 
     setenv flash_step "loading write-on-boot.rpd and write-on-boot.txt"
@@ -143,7 +143,7 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
         echo "*** The flash is written and verified. ***"
         echo "*** Unplug the power, then plug it in again. ***"
     else
-        # A one-line text file for "de25-flash status": failed_while=<the step>. The export
+        # A one-line text file for "de25-fpga status": failed_while=<the step>. The export
         # ends with a zero byte, which is left out.
         setenv failed_while "${flash_step}"
         env export -t 0x98000000 failed_while
@@ -151,7 +151,7 @@ if test "${flash_sdm}" = yes && test -e mmc 0:1 write-on-boot.rpd; then
         fatwrite mmc 0:1 0x98000000 write-on-boot-failed.txt ${flash_chk}
         led hps_led0 blink 250
         echo "*** The flash write FAILED while ${flash_step}. ***"
-        echo "*** After a power cycle, sudo de25-flash status says what the card recorded. ***"
+        echo "*** After a power cycle, sudo de25-fpga status says what the card recorded. ***"
     fi
     # Stay here: what the chip runs now and what the flash holds may no longer belong together.
     while true; do

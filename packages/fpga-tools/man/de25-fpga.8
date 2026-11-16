@@ -1,43 +1,87 @@
 .TH DE25-FPGA 8 "November 2026" "de25-nano-fpga-tools" "DE25-Nano"
 .SH NAME
-de25-fpga \- choose the core image loaded into the DE25-Nano's FPGA at boot
+de25-fpga \- manage the configuration of the DE25-Nano's FPGA
 .SH SYNOPSIS
+.B de25-fpga status
+.br
 .B de25-fpga list
 .br
 .B de25-fpga select
-.RB [ \-\-force ]
+.RB [ \-\-yes ]
 .I name
 .br
 .B de25-fpga disable
 .br
-.B de25-fpga status
+.B de25-fpga flash-write
+.RB [ \-\-yes ]
+.RI [ boot ]
+.br
+.B de25-fpga flash-restore
+.RB [ \-\-yes ]
+.RI [ file ]
 .SH DESCRIPTION
-On a DE25-Nano set up for Altera's "HPS boot first" mode the chip is configured in two
-phases. Phase 1 happens at power-on, from the HPS image in the board's flash: it sets up
-the SoC and starts U-Boot. Phase 2 happens later, when U-Boot loads a
-.I core image
-into the FPGA from the SD card. The core image is the FPGA's logic and pins.
+The DE25-Nano's chip is configured in two phases, in what Altera calls HPS boot first mode.
 .PP
-Several core images can be installed side by side.
-Each comes in a package named
-.BI de25-nano-core- name
-and is kept in
-.BI /usr/lib/de25-nano/core/ name\fR.
-Exactly one of them, or none, is
+Phase 1 happens at power-on, from the board's flash.
+The flash holds the
+.IR "HPS image" :
+the settings of the SoC (its pins and memory, and which of its peripherals are routed to
+the FPGA) and U-Boot's first stage, the SPL.
+.PP
+Phase 2 happens later, when U-Boot loads a
+.I core image
+into the FPGA from the SD card.
+The core image is the FPGA's logic and pins.
+.PP
+Several cores can be installed side by side, each from a package named
+.BI de25-nano-core- name\fR.
+One of them, or none, is
 .I selected
 to be loaded at boot.
-.B de25-fpga
-makes that choice.
-It never writes the flash; that is
-.BR de25-flash (8).
+A core loads only on the HPS image it was built for, which comes in a
+.I boot package
+named
+.BI de25-nano-boot- boot\fR,
+together with the
+.B u-boot.itb
+and
+.B boot.scr
+that belong to it; each core names the boot package it needs.
+If the chip refuses a core, Linux still starts, without it, but the board then cannot
+restart until its power has been unplugged and plugged in again.
 .PP
-A core image loads only on the HPS image it was built for.
-Each core names the boot package
-.RB ( de25-nano-boot-... )
-whose HPS image it needs.
-If the chip refuses a core image, Linux still starts, without the core, but the board
-then cannot restart until its power has been unplugged and plugged in again.
+.B de25-fpga
+keeps the two in step.
+Selecting a core is the ordinary thing to do with it; it has the flash written when the
+core needs that, after asking.
+Installing or upgrading packages never writes the flash.
+.PP
+As the board is shipped, the flash holds Terasic's whole FPGA design, and the chip keeps
+the flash from the SoC.
+Linux cannot write it then, and U-Boot does: the HPS image is left on the card, and at the
+next boot U-Boot checks it, saves what the flash held to the card as
+.BI saved- crc32 .rpd\fR,
+writes, and compares.
+This takes about two minutes, and the LED beside the HPS KEY button shows how it is going:
+one second on and one second off while it works, steady on when it has finished, four
+blinks a second if it failed.
+On a board whose flash already holds an HPS image, Linux writes the flash directly, and
+what it held is not saved.
+.PP
+The chip takes up new flash contents only at power-on.
+After the flash has been written, the board's power must be unplugged and plugged in
+again; a restart is not enough, and must not be tried.
 .SH COMMANDS
+.TP
+.B status
+Show what the flash holds, whether
+.B u-boot.itb
+and
+.B boot.scr
+on the card are those of an installed boot package, whether a flash write is waiting or has
+failed, the saved flash contents on the card, the selected core and the running core.
+If a core was selected but is not running, say why, as far as can be told.
+What the flash holds is shown only to root, who alone can read it.
 .TP
 .B list
 List the installed cores, one a line: the name, whether it is selected and whether it is
@@ -47,31 +91,66 @@ running, and the boot package it needs.
 Load the core
 .I name
 from the next boot on.
-The command first checks that the core fits the flash.
+.IP
+If the core can be seen to fit the flash, that is all.
 It is taken to fit if the core now running needs the same boot package, if the flash
 holds the HPS image of that boot package as installed, or if a flash write of that HPS
 image is waiting for the next boot.
-Otherwise the command changes nothing and says how to write the flash.
+.IP
+Otherwise the flash has to be written with the HPS image the core needs.
+The command says so and asks; on a yes it writes the flash, or leaves it for U-Boot to
+write at the next boot, puts the boot package's
+.B u-boot.itb
+and
+.B boot.scr
+on the card, and puts the core in place.
+On a no it changes nothing.
 .TP
 .B disable
 Load no core from the next boot on.
 .TP
-.B status
-Show the selected core and the running core.
-If a core was selected but is not running, say why, as far as can be told.
+.BR flash-write " [\fIboot\fR]"
+Write the HPS image of the boot package
+.I boot
+to the flash, and put its
+.B u-boot.itb
+and
+.B boot.scr
+on the card, without choosing a core.
+.I boot
+may be left out when one boot package is installed.
+This is for bringing a board to a newer build of the boot package.
+It says what it will do and asks first.
+If the flash already holds exactly that HPS image, the flash is left alone and only the
+two files on the card are renewed.
+If the selected core does not load on the HPS image being written, it is deselected.
+.TP
+.BR flash-restore " [\fIfile\fR]"
+Write saved flash contents back, from Linux, and stop a core being loaded at boot.
+Without
+.I file
+it takes the saved file on the card, if there is exactly one.
+The file must be the whole flash, 16 MiB.
+With the factory contents back and Terasic's card in the board, the board is as it came.
 .SH OPTIONS
 .TP
-.B \-\-force
-With
-.BR select :
-select the core without the check that it fits.
+.B \-\-yes
+Do not ask before writing the flash.
 .SH UPGRADES
-When the package of the selected core is upgraded, the new core image is put in place
-by itself and is loaded at the next boot, as a new kernel is.
-If the new version needs a different boot package, the card keeps the version it has,
-and the upgrade says what to do.
+When the package of the selected core is upgraded, the new core image is put in place by
+itself and is loaded at the next boot, as a new kernel is.
+If the new version needs a different boot package, the card keeps the version it has, and
+the upgrade says what to do.
 Removing the package of the selected core has the effect of
 .BR disable .
+.PP
+When a boot package is upgraded and the flash holds exactly the new package's HPS image,
+.B u-boot.itb
+and
+.B boot.scr
+on the card are renewed and take effect at the next boot.
+If the HPS image has changed, nothing happens until
+.BR flash-write .
 .SH WITHOUT A CORE
 Without a core the board has its serial console and Ethernet, with the Ethernet PTP
 clock.
@@ -79,30 +158,58 @@ The signals on the GPIO headers, the HDMI output and the control of the fan come
 the core.
 .SH FILES
 .TP
-.BI /usr/lib/de25-nano/core/ name /fpga.rbf
-The core image.
+.BI /usr/lib/de25-nano/core/ name /
+A core:
+.BR fpga.rbf ,
+the core image;
+.BR fpga.dtbo ,
+its device tree overlay, which tells Linux what the core adds;
+.BR boot ,
+the name of the boot package it needs.
 .TP
-.BI /usr/lib/de25-nano/core/ name /fpga.dtbo
-Its device tree overlay: what Linux must be told when the core is loaded.
+.BI /usr/lib/de25-nano/boot/ boot /
+A boot package:
+.BR hps.rpd ,
+the HPS image, as raw bytes from the start of the flash;
+.BR u-boot.itb ,
+U-Boot with TF-A, which the SPL loads from the card;
+.BR boot.scr ,
+the script U-Boot runs, which writes the flash when asked and loads the selected core.
 .TP
-.BI /usr/lib/de25-nano/core/ name /boot
-The name of the boot package whose HPS image the core loads on.
-.TP
-.I /boot/firmware/fpga.rbf
-The selected core image, which U-Boot loads. Not there when no core is selected.
-.TP
-.I /boot/firmware/fpga-core.txt
-The name of the selected core.
+.I /boot/firmware
+The card's FAT partition, which U-Boot uses:
+.BR u-boot.itb ,
+.BR boot.scr ,
+the selected core as
+.B fpga.rbf
+with its name in
+.BR fpga-core.txt ,
+and
+.BR u-boot-previous.itb ,
+the U-Boot that was there before the last change.
 .TP
 .I /boot/dtbo/fpga.dtbo
-The selected core's overlay, which the boot menu names. U-Boot applies it only when the
-core image has loaded.
+The selected core's overlay, which the boot menu names.
+U-Boot applies it only when the core image has loaded.
+.TP
+.I /dev/mtd0
+The flash, when the chip has handed it to the SoC.
+Not there with the factory contents.
+.TP
+.IR /boot/firmware/write-on-boot.rpd ", " /boot/firmware/write-on-boot.txt
+A flash write waiting for the next boot: the new contents, and their checksum.
+.TP
+.BI /boot/firmware/saved- crc32 .rpd
+What the flash held before U-Boot wrote it.
+Keep a copy on another computer.
+.TP
+.I /boot/firmware/write-on-boot-failed.txt
+Left by U-Boot if the write failed: the step it failed in.
 .TP
 .I /proc/device-tree/chosen/de25-nano,core
 The name of the running core, from its overlay.
 .SH EXAMPLES
-A board whose flash has been written with
-.BR "de25-flash write" :
+A new board, with its factory flash contents:
 .PP
 .nf
 .RS
@@ -110,6 +217,30 @@ sudo de25-fpga select base
 sudo reboot
 .RE
 .fi
+.PP
+The first command says that the flash will be written, and asks.
+After the reboot, watch the LED; when it is steady on, unplug the power and plug it in
+again.
+.PP
+Changing to another installed core that needs the same boot package:
+.PP
+.nf
+.RS
+sudo de25-fpga select tic
+sudo reboot
+.RE
+.fi
+.PP
+Going back to the factory contents:
+.PP
+.nf
+.RS
+sudo de25-fpga flash-restore
+sudo systemctl halt
+.RE
+.fi
+.PP
+Then unplug the power and plug it in again.
 .SH SEE ALSO
-.BR de25-flash (8),
-.BR u-boot-update (8)
+.BR u-boot-update (8),
+.BR flashcp (8)

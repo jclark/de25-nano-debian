@@ -20,7 +20,7 @@ on a card, and one is selected.
 
 | | Stage 1 | Stage 2 |
 |---|---|---|
-| What you do | Write an SD card | Also write the board's flash, once, and select a core: two commands on the board, a reboot and a power cycle |
+| What you do | Write an SD card | Also select a core, which has the board's flash written, once: one command on the board, a reboot and a power cycle |
 | The flash | Left as it came from the factory | Holds the HPS image built here. The core image is then a file on the SD card, loaded at every boot. |
 | What you need | Docker | Also Altera's Quartus Pro 26.3, which is free for this FPGA, installed on the build machine (38 GB), to build the FPGA design |
 | Debian, near-mainline kernel, serial console, Ethernet with its PTP clock | yes | yes |
@@ -31,8 +31,9 @@ on a card, and one is selected.
 
 Stage 1 changes nothing on the board, so start there. Stage 2 can follow later with the same
 SD card: one card image serves both. The image has the HPS image and the base core
-installed as packages. Neither is used until a command on the board asks for it: the flash
-is then written at the next boot, and after a power cycle the core is loaded at every boot.
+installed as packages. Neither is used until a command on the board selects the core: the
+flash is then written at the next boot, and after a power cycle the core is loaded at every
+boot.
 
 Everything is built from source on one x86-64 Linux machine.
 
@@ -90,7 +91,7 @@ flowchart LR
   cpkg[/"de25-nano-core-base"/]
   img[/"de25-nano.img"/]
   wc[/"Write the card"\]
-  wf[/"Write the flash<br/>de25-flash write"\]
+  wf[/"Select the core, which<br/>writes the flash:<br/>de25-fpga select base"\]
   sd[("microSD card")]
   qspi[("QSPI flash")]
   P1 --> itb --> P5
@@ -183,8 +184,8 @@ systemctl --failed              # nothing
 and in stage 2 also:
 
 ```
-sudo de25-flash status          # the flash holding the HPS image of de25-nano-boot-base
-sudo de25-fpga status           # the core base selected and running
+sudo de25-fpga status           # the flash holding the HPS image of de25-nano-boot-base,
+                                # the core base selected and running
 ls /dev/ttyS1                   # UART0 on the header
 sudo dmesg | grep simple-framebuffer
 cat /sys/class/hwmon/hwmon*/name | grep amc6821    # the fan controller

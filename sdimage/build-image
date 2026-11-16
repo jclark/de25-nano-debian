@@ -9,11 +9,11 @@
 #                    kernel's own "make bindeb-pkg"; the board's device tree in it must be
 #                    built with symbols
 #   de25-nano-fpga-tools_<version>_all.deb
-#                    de25-flash, de25-fpga, and the fan and HDMI scripts (Task P)
+#                    de25-fpga, and the fan and HDMI scripts (Task P)
 #   de25-nano-boot-<name>_<version>_arm64.deb     optional, both or neither (Task P): the
 #   de25-nano-core-<name>_<version>_arm64.deb       boot package (the HPS image for the flash,
 #                      u-boot.itb, boot.scr) and one or more core packages. They are installed
-#                      and not put into effect: that is "de25-flash write" and "de25-fpga
+#                      and not put into effect: that is "de25-fpga
 #                      select", on the board.
 #   u-boot.itb       without a boot package: U-Boot and TF-A from Task B; it has to match the
 #   boot.cmd           SPL in the board's QSPI flash; and the source of the boot script

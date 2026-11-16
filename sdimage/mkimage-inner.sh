@@ -63,14 +63,14 @@ grep -q "fdtdir /usr/lib/linux-image-$KREL/" "$menu" || { echo "the boot menu ha
 cat "$menu"
 
 # 3a. This repository's packages (packages/README.md).
-# de25-nano-fpga-tools: de25-flash and de25-fpga, and what a core needs in Linux: the fan
+# de25-nano-fpga-tools: de25-fpga, and what a core needs in Linux: the fan
 # curve's udev rule, script and settings, and the HDMI transmitter's script and unit. Those do
 # nothing without a core: the udev rule waits for the fan controller, and the HDMI unit has a
 # condition on the I2C bus that the overlay enables.
 # de25-nano-boot-<name>: the HPS image for the flash, with its u-boot.itb and boot.scr.
 # de25-nano-core-<name>: a core image and its overlay.
-# Their files stay in /usr/lib/de25-nano, out of the way of the boot, until "de25-flash write"
-# and "de25-fpga select" are run on the board. (Their maintainer scripts do nothing here:
+# Their files stay in /usr/lib/de25-nano, out of the way of the boot, until "de25-fpga
+# select" is run on the board. (Their maintainer scripts do nothing here:
 # /boot/firmware is not mounted.)
 mkdir -p "$root/tmp/debs"
 cp "$TOOLS" "$root/tmp/debs/"
@@ -154,9 +154,9 @@ img=/out/$IMAGE_NAME
 root_mb=$((IMAGE_MB - FAT_MB - 1))
 rm -f "$work/fat.img" "$work/root.img" "$img"
 mkfs.vfat -C -n FIRMWARE "$work/fat.img" $((FAT_MB * 1024)) >/dev/null
-# U-Boot and its boot script, from the boot package: the same two files that "de25-flash
-# write" puts there. The script sets the device tree name for the menu, writes the flash when
-# "de25-flash write" has asked for it, and loads fpga.rbf if it is there. The image does not
+# U-Boot and its boot script, from the boot package: the same two files that a
+# flash write puts there. The script sets the device tree name for the menu, writes the flash when
+# "de25-fpga" has asked for it, and loads fpga.rbf if it is there. The image does not
 # put fpga.rbf there: "de25-fpga select" does, on the board. Without a boot package, U-Boot
 # comes from Task B and the script is wrapped here.
 if [ "$FABRIC" = yes ]; then

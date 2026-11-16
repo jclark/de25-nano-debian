@@ -3,7 +3,7 @@
 #
 # Usage: packages/build.sh
 # Output, in out/packages/:
-#   de25-nano-fpga-tools_<version>_all.deb     de25-fpga, de25-flash, the fan and HDMI scripts
+#   de25-nano-fpga-tools_<version>_all.deb     de25-fpga, the fan and HDMI scripts
 #   de25-nano-boot-base_<version>_arm64.deb    the HPS image for the flash, u-boot.itb, boot.scr
 #   de25-nano-core-base_<version>_arm64.deb    the base core image and its overlay
 # Needs: dpkg-deb and mkimage (Debian and Ubuntu: packages dpkg and u-boot-tools), or else

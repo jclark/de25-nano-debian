@@ -44,22 +44,20 @@ The board is now running Debian with its network port, and that is all: HDMI, th
 control and the signals on the 40-pin GPIO headers come with the FPGA's core image, which
 is the next step.
 
-## Write the flash and select the core
+## Select the core
 
 The board's flash chip holds Terasic's own FPGA design. This step replaces the contents of
 the flash, after saving them to the card, so that the board loads the FPGA's core image from
 the card at every boot.
 
 ```
-sudo de25-flash write
 sudo de25-fpga select base
 sudo reboot
 ```
 
-The first command explains what will happen and asks for confirmation; the second chooses
-the core to load once the flash is written. Nothing is written until the reboot. During the
-reboot, watch the small LED beside the two push-buttons marked `HPS RST` and `HPS KEY`, next
-to the slide switches:
+The first command explains that the flash has to be written for this core and asks for
+confirmation. Nothing is written until the reboot. During the reboot, watch the small LED
+beside the two push-buttons marked `HPS RST` and `HPS KEY`, next to the slide switches:
 
 | LED | Meaning |
 |---|---|
@@ -88,7 +86,7 @@ sudo reboot
 
 A new kernel and a new version of the selected core take effect at that reboot. The flash is
 never written by an update. If a release has a new boot package that needs the flash
-written, the installation says so, and `sudo de25-flash write` does it when you choose; the
+written, the installation says so, and `sudo de25-fpga flash-write` does it when you choose; the
 release notes say when that is the case. Debian's own packages are updated in the usual way,
 with `sudo apt update` and `sudo apt upgrade`.
 
@@ -97,13 +95,12 @@ with `sudo apt update` and `sudo apt upgrade`.
 To put the saved flash contents back:
 
 ```
-sudo de25-flash restore
+sudo de25-fpga flash-restore
 sudo systemctl halt
 ```
 
 Then unplug the power and plug it in again. The board runs this card as it did before the
 flash was written. With Terasic's card in place of this one, it is as it came.
 
-`sudo de25-flash status` and `sudo de25-fpga status` show at any time what the flash holds
-and which core is selected and running; `man de25-flash` and `man de25-fpga` describe the
-two commands.
+`sudo de25-fpga status` shows at any time what the flash holds and which core is selected
+and running; `man de25-fpga` describes the command.

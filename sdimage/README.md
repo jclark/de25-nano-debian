@@ -17,9 +17,9 @@ to be written to a microSD card ([install.md](../install.md)).
 
 It is one image for every board. The boot package and the base core are installed in it
 as packages, with their files in `/usr/lib/de25-nano/`, where the boot does not use them, so
-a new card boots without a core, which is stage 1. On the board, `sudo de25-flash write`
-has the flash written with the HPS image, and `sudo de25-fpga select base` copies the core
-image and its overlay to where the boot uses them ([install.md](../install.md)).
+a new card boots without a core, which is stage 1. On the board, `sudo de25-fpga select base`
+has the flash written with the HPS image the core needs, and copies the core image and its
+overlay to where the boot uses them ([install.md](../install.md)).
 
 When Task F has not been built, the script makes `out/sdimage/de25-nano-nofpga.img` instead:
 the same image without the boot package and the core.
@@ -130,7 +130,7 @@ sdimage/qemu-test.sh
 About five minutes. It boots a copy of the image in QEMU with the kernel from Task K and
 checks it from the kernel upwards: the first boot's set-up, that no unit fails, that the
 packages are installed and install again on the running system, the man pages, and
-`de25-flash write` and `de25-fpga select base` up to the files U-Boot would act on. A good
+`de25-fpga select base` up to the files U-Boot would act on. A good
 run ends with `RESULT: all checks passed`.
 
 QEMU has no model of this board's SoC, so nothing before the kernel runs there: not the SPL,
@@ -164,9 +164,9 @@ sudo apt install ./linux-image-*.deb ./de25-nano-*.deb
 | the kernel | The boot menu is rewritten and the newest kernel becomes its default; the old one stays as the second entry until its package is removed. |
 | `de25-nano-fpga-tools` | In effect at once. |
 | `de25-nano-core-base`, or another core | If it is the selected core, the new one loads at the next boot. |
-| `de25-nano-boot-base` | If the flash holds exactly its HPS image, `u-boot.itb` and `boot.scr` on the card are renewed and take effect at the next boot. If not, nothing changes until `sudo de25-flash write`, which writes the flash and needs a power cycle. |
+| `de25-nano-boot-base` | If the flash holds exactly its HPS image, `u-boot.itb` and `boot.scr` on the card are renewed and take effect at the next boot. If not, nothing changes until `sudo de25-fpga flash-write`, which writes the flash and needs a power cycle. |
 
-`sudo de25-flash status` and `sudo de25-fpga status` say how things stand afterwards.
+`sudo de25-fpga status` says how things stand afterwards.
 
 To add the boot package and a core to a card made from `de25-nano-nofpga.img`, install the
 two packages in the same way, then carry on as in [install.md](../install.md).

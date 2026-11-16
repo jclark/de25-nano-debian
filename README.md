@@ -46,7 +46,7 @@ supervision.
   flash, and the core image, on the card. Several core images can be installed, and one is
   selected to load at boot.
 - **Packages:** the boot chain (the HPS image, U-Boot and its script), the core image, and
-  the commands that manage them, `de25-flash` and `de25-fpga`, are Debian packages, as the
+  the command that manages them, `de25-fpga`, are Debian packages, as the
   kernel is.
 
 The sources and their exact versions are in [build.md](build.md) and the pages it links to.

@@ -20,25 +20,26 @@ run "dpkg has nothing half installed" sh -c '[ -z "$(dpkg --audit)" ]'
 for p in de25-nano-fpga-tools de25-nano-boot-base de25-nano-core-base "linux-image-$KREL"; do
     has "package $p is installed" '^ii' dpkg-query -W -f='${db:Status-Abbrev}\n' "$p"
 done
-run "man pages are there" man -w de25-flash de25-fpga
+run "the man page is there" man -w de25-fpga
 has "de25-hdmi-init.service is enabled and was skipped (no I2C bus 0)" 'enabled' systemctl is-enabled de25-hdmi-init.service
-has "de25-flash status: no access to the flash" 'kept from the SoC' sudo de25-flash status
-has "de25-flash status: the card has the boot package's U-Boot" 'are those of de25-nano-boot-base' sudo de25-flash status
-has "de25-fpga status: nothing selected" 'Selected core: none' sudo de25-fpga status
-has "a user's login shell finds de25-fpga, and status needs no root" 'Selected core: none' bash -lc 'de25-fpga status'
-has "de25-fpga status: nothing running" 'Running core: none' sudo de25-fpga status
-has "de25-fpga list shows the base core" '^base .*de25-nano-boot-base' sudo de25-fpga list
 no "Linux has no flash, as on a factory board" test -e /dev/mtd0
+has "status: no access to the flash" 'kept from the SoC' sudo de25-fpga status
+has "status: the card has the boot package's U-Boot" 'that of de25-nano-boot-base' sudo de25-fpga status
+has "status: nothing selected" 'Selected core: none' sudo de25-fpga status
+has "status: nothing running" 'Running core: none' sudo de25-fpga status
+has "a user's login shell finds de25-fpga, and status needs no root" 'Selected core: none' bash -lc 'de25-fpga status'
+has "list shows the base core" '^base .*de25-nano-boot-base' sudo de25-fpga list
 no "no core on the FAT partition of a new card" test -e $fat/fpga.rbf
 
 if [ "$1" = first ]; then
-    no "select is refused before the flash is written" sudo de25-fpga select base
-    has "de25-flash write leaves the request for U-Boot" 'will be written at the next boot' sudo de25-flash write --force
+    no "select without a yes changes nothing" sh -c 'echo n | sudo de25-fpga select base'
+    no "and leaves no request for a flash write" test -e $fat/write-on-boot.rpd
+    has "select asks for the flash write that the core needs" 'will be written at the next boot' sudo de25-fpga select --yes base
     run "write-on-boot.rpd is the package's HPS image" cmp $lib/boot/base/hps.rpd $fat/write-on-boot.rpd
-    has "select is accepted while the write waits" 'will be loaded from the next boot' sudo de25-fpga select base
     run "the core image is on the FAT partition" cmp $lib/core/base/fpga.rbf $fat/fpga.rbf
     run "the overlay is where the boot menu looks" cmp $lib/core/base/fpga.dtbo /boot/dtbo/fpga.dtbo
     run "the boot menu names the overlay" grep -q 'fdtoverlays .*/boot/dtbo/fpga.dtbo' /boot/extlinux/extlinux.conf
+    has "status shows the waiting write" 'waiting for the next boot (de25-nano-boot-base)' sudo de25-fpga status
     has "installing the packages again on the running system works" 'factory contents' \
         sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall /tmp/de25-nano-fpga-tools_*.deb /tmp/de25-nano-boot-*.deb /tmp/de25-nano-core-*.deb
     run "the core is still selected after that" sh -c "sudo de25-fpga status | grep -q 'Selected core: base'"

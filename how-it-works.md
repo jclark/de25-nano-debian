@@ -19,7 +19,7 @@ Altera configures this chip in two phases, in what it calls HPS boot first mode:
 
 - Stage 1: the factory contents, Terasic's whole FPGA design with a boot loader.
 - Stage 2: the HPS image of the boot package (`hps.rpd`), and no FPGA logic. Written by
-  `de25-flash write`, or over JTAG ([flash-jtag.md](flash-jtag.md)).
+  `de25-fpga`, or over JTAG ([flash-jtag.md](flash-jtag.md)).
 
 **SD card, partition 1.** FAT, 64 MB, mounted at `/boot/firmware`. This is what U-Boot uses.
 
@@ -29,9 +29,9 @@ Altera configures this chip in two phases, in what it calls HPS boot first mode:
 | `boot.scr` | The U-Boot script |
 | `uboot.env` | U-Boot's saved settings, if any have been saved |
 | `fpga.rbf`, `fpga-core.txt` | The selected core image and its name; there only after `de25-fpga select` (stage 2) |
-| `write-on-boot.rpd`, `write-on-boot.txt` | The new flash contents and their crc32; there only between `de25-flash write` on a board with the factory flash contents and the boot that writes the flash |
+| `write-on-boot.rpd`, `write-on-boot.txt` | The new flash contents and their crc32; there only between a flash write asked for on a board with the factory flash contents and the boot that carries it out |
 | `saved-<crc32>.rpd` | What the flash held before U-Boot wrote it, the whole 16 MiB, named by its crc32 |
-| `write-on-boot-failed.txt` | There only if the last flash write failed: the step it failed in, for `de25-flash status` |
+| `write-on-boot-failed.txt` | There only if the last flash write failed: the step it failed in, for `de25-fpga status` |
 | `u-boot-previous.itb` | The `u-boot.itb` that was there before the last change |
 
 **SD card, partition 2.** ext4, the rest of the card, mounted at `/`: Debian.
@@ -87,12 +87,16 @@ and the card.
 
 | What | Must fit | How it is kept so |
 |---|---|---|
-| The core image, on the card | The SoC settings in the flash's HPS image: the chip refuses a core image built for other settings, and the board then cannot restart until it is power cycled | The settings have a name, `base`, which is the name of the boot package, `de25-nano-boot-base`. Every core package depends on the boot package it was built for, and `de25-fpga select` wants to see that the core fits before it puts it on the card. |
-| `u-boot.itb` and `boot.scr`, on the card | The SPL in the flash: the same U-Boot source | The three are one package and are put in place together, by `de25-flash write`. |
+| The core image, on the card | The SoC settings in the flash's HPS image: the chip refuses a core image built for other settings, and the board then cannot restart until it is power cycled | The settings have a name, `base`, which is the name of the boot package, `de25-nano-boot-base`. Every core package depends on the boot package it was built for, and `de25-fpga select` puts a core on the card only when it fits the flash, or has the flash written to fit. |
+| `u-boot.itb` and `boot.scr`, on the card | The SPL in the flash: the same U-Boot source | The three are one package and are put in place together, whenever the flash is written. |
 | The overlay, on the card | The core image | Both come from one package and are copied together. U-Boot applies the overlay only if the core image loaded. |
 
-Linux has no way to ask the flash what its SoC settings are. `de25-fpga select` takes a
-core to fit when one of these holds:
+One command, `de25-fpga`, looks after all of it (`man de25-fpga`). What a person wants is
+a core running; the flash is something the core needs. So the ordinary command is
+`de25-fpga select <core>`, and the flash follows from it.
+
+Linux has no way to ask the flash what its SoC settings are. `select` takes a core to fit
+when one of these holds:
 
 - the core now running was built for the same boot package: a running core is proof of what
   the flash holds. Linux knows which core is running from two properties its overlay puts
@@ -100,18 +104,22 @@ core to fit when one of these holds:
 - the flash holds, byte for byte, the HPS image of that boot package as installed;
 - a flash write of that HPS image is waiting for the next boot.
 
-A card moved to a board with other flash contents escapes all three: the core is refused
-once, `de25-fpga status` says so, and the board needs a power cycle.
+If none holds, `select` says that the flash has to be written with the HPS image the core
+needs, and asks. On a yes the flash is written, or left for U-Boot to write, and the core
+is put in place in the same step, so the two cannot be left disagreeing. A card moved to a
+board with other flash contents escapes this: the core is refused once, `de25-fpga status`
+says so, and the board needs a power cycle.
 
-Nothing writes the flash except `de25-flash write` and `de25-flash restore`, which ask
-first. Installing or upgrading packages changes what the board runs only where that cannot
-leave it unable to start:
+Nothing writes the flash except `de25-fpga select` when the core needs it,
+`de25-fpga flash-write` and `de25-fpga flash-restore`, and each asks first. Installing or
+upgrading packages changes what the board runs only where that cannot leave it unable to
+start:
 
 | Package upgraded | Effect |
 |---|---|
 | The kernel | The next boot runs it; the previous one stays in the boot menu |
 | The selected core | The next boot loads it. If the new version was built for another boot package, the card keeps the old one and the upgrade says so. |
-| The boot package | If the flash holds exactly the new package's HPS image, `u-boot.itb` and `boot.scr` on the card are renewed. If not, the card is left alone until `de25-flash write`. |
+| The boot package | If the flash holds exactly the new package's HPS image, `u-boot.itb` and `boot.scr` on the card are renewed. If not, the card is left alone until `de25-fpga flash-write`, which also deselects a core that would not load on what it writes. |
 
 ### Writing the flash
 
@@ -127,10 +135,10 @@ without JTAG.
 |---|---|---|
 | `sdmflash` | A U-Boot command, added by `u-boot/qspi-flash.patch` | Reads, erases and writes the flash through the SDM |
 | `hps.rpd` | `/usr/lib/de25-nano/boot/base`, from the boot package | The new flash contents as raw bytes, from the start of the flash to the end of the data (about 2.5 MB of the 16 MiB) |
-| `de25-flash write` | `/usr/sbin`, from `de25-nano-fpga-tools` | Puts the boot package's `u-boot.itb` and `boot.scr` on the FAT partition. On a board where Linux has no `/dev/mtd0` it then copies `hps.rpd` there as `write-on-boot.rpd`, with its crc32 in `write-on-boot.txt`. On a board where Linux has the flash it writes `hps.rpd` to `/dev/mtd0` itself. |
+| `de25-fpga select`, `de25-fpga flash-write` | `/usr/sbin`, from `de25-nano-fpga-tools` | Put the boot package's `u-boot.itb` and `boot.scr` on the FAT partition. On a board where Linux has no `/dev/mtd0` they then copy `hps.rpd` there as `write-on-boot.rpd`, with its crc32 in `write-on-boot.txt`. On a board where Linux has the flash they write `hps.rpd` to `/dev/mtd0` themselves. |
 | `boot.scr` | The FAT partition | When `write-on-boot.rpd` is there and the SDM has kept the flash: checks the file's size and crc32 and removes it; reads the whole flash, saves it as `saved-<crc32>.rpd` unless that file is already there, and reads the save back from the card; only then erases, writes, reads back and compares; and stays there. On failure it records the failing step in `write-on-boot-failed.txt`. |
 | `HPS_LED` | The one LED wired to the SoC | Shows progress: slow blinking while working, steady on when done, fast blinking on failure |
-| `de25-flash restore` | `/usr/sbin` | Writes a `saved-<crc32>.rpd` back from Linux through `/dev/mtd0` |
+| `de25-fpga flash-restore` | `/usr/sbin` | Writes a `saved-<crc32>.rpd` back from Linux through `/dev/mtd0` |
 
 The chip takes up new flash contents only at power-on, so a power cycle follows the write.
 The script tells from U-Boot's variable `qspi_clock` whether the SDM kept the flash: the

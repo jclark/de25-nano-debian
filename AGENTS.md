@@ -44,13 +44,12 @@ Stop and ask before each of these, naming exactly what you are about to do:
 
 - **Writing the SD card.** `dd` to the wrong device destroys a disk. Show the person the
   output of `lsblk` and have them confirm the device name. Never guess it.
-- **Any flash operation** (`install.md`, `flash-jtag.md`): `sudo de25-flash write`,
-  `sudo de25-flash restore`, and anything over JTAG. A write that
+- **Any flash operation** (`install.md`, `flash-jtag.md`): `sudo de25-fpga select` when it
+  says the flash will be written, `sudo de25-fpga flash-write`, `sudo de25-fpga
+  flash-restore`, and anything over JTAG. Never pass `--yes` for the person. A write that
   fails part-way leaves the board unable to start until the flash is written over JTAG.
   After a write from the board, have the person copy `saved-<crc32>.rpd` from the
   card to somewhere else.
-- **`sudo de25-fpga select --force`**: a core image that the chip refuses leaves the board
-  unable to restart until its power is cycled.
 - **Shutting down or restarting the board.**
 - Plugging cables, swapping the card, power cycling, and looking at the HDMI output are theirs
   to do; say plainly what you need and wait.
@@ -74,8 +73,8 @@ Say what you built, what you checked and how, and what you could not check.
   with its `build.sh`.
 - Altera's words for the two parts of the FPGA design: the HPS image (phase 1, in the flash)
   and the core image (phase 2, on the card). The SPL is U-Boot's first stage, in the HPS image.
-- After a change to `packages/fpga-tools/de25-flash`, `de25-fpga` or `common.sh`, run
-  `packages/fpga-tools/test.sh`, and keep the two man pages true. Raise the versions in
+- After a change to `packages/fpga-tools/de25-fpga`, run `packages/fpga-tools/test.sh`, and
+  keep its man page true. Raise the versions in
   `packages/VERSIONS` as `packages/README.md` says.
 - The FPGA design is changed in `fpga/` (the Tcl scripts, `top-level.patch`, the added files),
   never in the applied copy. After a change: run `fpga/sim/run.sh` if the video block changed,

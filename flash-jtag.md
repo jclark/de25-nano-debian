@@ -1,7 +1,7 @@
 # Writing the flash over JTAG
 
 The usual way to write the board's flash is from the board itself, with
-`sudo de25-flash write` ([install.md](install.md)). This page is for the two cases where
+`sudo de25-fpga select base` ([install.md](install.md)). This page is for the two cases where
 that is not enough: a write from the board that failed, and writing the flash with Altera's
 programmer.
 
@@ -11,8 +11,8 @@ The LED blinks fast, and the serial console names the step that failed. Unplug t
 plug it in again.
 
 If the board starts, the flash is as it was: the failure came before anything was erased.
-`sudo de25-flash status` repeats the step that failed. `sudo de25-flash write` asks for the
-write again; removing `write-on-boot.rpd` from the `FIRMWARE` drive gives it up.
+`sudo de25-fpga status` repeats the step that failed. `sudo de25-fpga select base` asks for
+the write again, and `sudo de25-fpga disable` gives it up.
 
 If the board does not start, the failure came while the flash was being erased, written or
 compared, and the flash has to be written over JTAG as described below. The contents it had
@@ -64,16 +64,13 @@ its programming cables).
 5. Unplug the power, wait a few seconds, and plug it in again. Then, on the board:
 
    ```
-   sudo de25-flash write
    sudo de25-fpga select base
    sudo reboot
    ```
 
-   `de25-flash write` finds that the flash already holds the HPS image, if the file written
-   was the one in the installed boot package, and only puts that package's `u-boot.itb` and
-   `boot.scr` on the card. If the file was a newer build than the card has, `de25-fpga
-   select` cannot see that the core fits: install the matching packages on the card, or use
-   `sudo de25-fpga select --force base`.
+   If the file written was the one of the boot package installed on the card, `select` sees
+   that the flash holds what the core needs and writes nothing. If it was another build, it
+   offers to write the flash with the installed one.
 
 To put back contents read in step 3, do the same with that file in step 4, after
 `sudo de25-fpga disable` on the board.
