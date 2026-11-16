@@ -91,6 +91,17 @@ running base base
 expect "being removed" "removing the selected core's package disables it" -- fpga hook remove base
 [ ! -e "$fat/fpga.rbf" ] || bad "remove left fpga.rbf"
 
+echo "# A card set up by hand, as before release 0.2: a core with no name beside it"
+blob "$fat/fpga.rbf" 2048; blob "$t/boot/dtbo/fpga.dtbo" 256; rm -f "$fat/fpga-core.txt"
+mkdir -p "$t/proc/device-tree/chosen/framebuffer@bf000000"; rm -f "$t/proc/device-tree/chosen/de25-nano,core" "$t/proc/device-tree/chosen/de25-nano,boot"
+expect "put on the card without de25-fpga select" "status: a selected core without a name" -- fpga status
+expect "one without a name" "status: a running core without a name" -- fpga status
+expect "base " "list still works" -- fpga list
+blob "$fat/write-on-boot.rpd" 64; rm -f "$fat/write-on-boot.txt"
+expect "is on the card" "flash status: a request file without its text file" -- flash status
+rm -f "$fat/write-on-boot.rpd"; rmdir "$t/proc/device-tree/chosen/framebuffer@bf000000"
+expect "being removed\|No core" "disable clears it" -- fpga disable
+
 echo "# Restore"
 refuse "restore refuses a file that is not what its name says" -- flash restore --force
 head -c 16777216 /dev/urandom > "$t/factory"; crc=$(gzip -1 -c "$t/factory" | tail -c 8 | head -c 4 | od -An -tx4 | tr -d ' \n')

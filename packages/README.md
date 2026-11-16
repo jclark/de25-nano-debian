@@ -90,7 +90,7 @@ packages/build.sh
 Seconds. Check the result:
 
 - `dpkg-deb -I` and `dpkg-deb -c` on each file in `out/packages/`.
-- `packages/fpga-tools/test.sh` ends with `all 29 tests passed`. Run it after any change to
+- `packages/fpga-tools/test.sh` ends with `all 34 tests passed`. Run it after any change to
   the two commands.
 - On a board: `sudo apt install ./de25-nano-*.deb`, then `sudo de25-flash status` and
   `sudo de25-fpga status`.

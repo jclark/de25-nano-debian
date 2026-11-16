@@ -63,7 +63,7 @@ unnamed_core_running() {
 # The core selected to load at boot: fpga.rbf on the FAT partition, with its name beside it.
 selected_core() {
     [ -f "$fat/fpga.rbf" ] || return 0
-    name=$(sed -n 's/^core=//p' "$selected_txt" 2>/dev/null)
+    name=$(sed -n 's/^core=//p' "$selected_txt" 2>/dev/null) || name=
     echo "${name:-unknown}"
 }
 
@@ -83,7 +83,7 @@ flash_boot() {
 # The boot package a waiting flash write is for, or nothing.
 pending_boot() {
     [ -f "$request" ] || return 0
-    sed -n 's/^flash_new_boot=//p' "$request_txt" 2>/dev/null
+    sed -n 's/^flash_new_boot=//p' "$request_txt" 2>/dev/null || true
 }
 
 # fits BOOT: can it be shown that a core for that boot package will load? Sets $why.
