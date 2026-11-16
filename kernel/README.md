@@ -13,6 +13,7 @@ flowchart LR
 |---|---|---|
 | `out/kernel/linux-image-<release>_<version>_arm64.deb` | The kernel as a Debian package, made by the kernel's own `make bindeb-pkg` | Installed in the image by Task I; it can also be installed on a running board with `dpkg -i` |
 | `out/kernel/config` | The configuration used | For reference; the package also installs it as `/boot/config-<release>` |
+| `out/kernel/Module.symvers` | The kernel's exported symbols | With the configuration and the source at the same commit, what is needed to build a module for this kernel elsewhere; a release carries both |
 
 What the package installs:
 

@@ -7,6 +7,8 @@
 #             the kernel, its modules and its device trees, as the kernel's own
 #             "make bindeb-pkg" packages them
 #         out/kernel/config    the configuration used
+#         out/kernel/Module.symvers   the kernel's exported symbols; with the configuration
+#             and the source at the same commit, what a module built elsewhere needs
 # Needs: git and network access to github.com; the tools of kernel/Dockerfile on this machine,
 #        or else Docker. About 5 GB of disk.
 #
@@ -61,6 +63,7 @@ build='
     KDEB_CHANGELOG_DIST=trixie DEBFULLNAME="Local build" DEBEMAIL=nobody@localhost \
         mk -j"$jobs" bindeb-pkg
     cp "$obj/.config" "$top/out/kernel/config"
+    cp "$obj/Module.symvers" "$top/out/kernel/Module.symvers"
     echo "kernel release: $(cat "$obj/include/config/kernel.release")"
 '
 # With the compiler and the other tools of kernel/Dockerfile on this machine, build here;
