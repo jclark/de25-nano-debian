@@ -1,10 +1,10 @@
 # Tests to run on the board
 
-Copy what you need to the board. All of these are for stage 2, with the FPGA design enabled.
+Copy what you need to the board. All of these are for stage 2, with the base core selected.
 
 ## The PTP clock's trigger input and pulse output
 
-With a jumper from JP1 pin 7 (pulse output) to pin 9 (trigger input), the clock timestamps
+With a jumper from JP1 pin 6 (pulse output) to pin 14 (trigger input), the clock timestamps
 its own pulses. `testptp` is the kernel's own test program,
 `tools/testing/selftests/ptp/testptp.c` in the kernel source; compile it for arm64, on the
 board with `gcc` or with the cross-compiler, against the headers of this kernel
@@ -39,9 +39,8 @@ sudo python3 hdmi-test.py sweep 5        # step the transmitter's clock delay, 5
 sudo python3 hdmi-test.py move 10        # a moving bar: a heavy load on the memory
 ```
 
-`sweep` is for finding the range of clock delays that gives a clean image after the FPGA
-design's HDMI pin timing has changed; the delay in use is set in
-`/usr/local/sbin/de25-hdmi-init`.
+`sweep` is for finding the range of clock delays that gives a clean image after the core's
+HDMI pin timing has changed; the delay in use is set in `/usr/sbin/de25-hdmi-init`.
 
 To put the text console back afterwards: `printf '\033c' | sudo tee /dev/tty1` and
 `sudo systemctl restart getty@tty1`.

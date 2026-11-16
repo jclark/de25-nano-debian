@@ -13,8 +13,8 @@ flowchart LR
 
 | File | What it is | Where it goes |
 |---|---|---|
-| `out/u-boot/u-boot.itb` | U-Boot, TF-A's `bl31.bin` and U-Boot's own device tree in one file | The FAT partition of the SD card, by Task I. The first-stage loader in the flash loads it. |
-| `out/u-boot/u-boot-spl-dtb.hex` | The first-stage loader (SPL) | Into the flash image, by Task F. Not used for stage 1: a factory board already has this loader in its flash. |
+| `out/u-boot/u-boot.itb` | U-Boot, TF-A's `bl31.bin` and U-Boot's own device tree in one file | The boot package, by Task P, and from there the FAT partition of the SD card. The SPL in the flash loads it. |
+| `out/u-boot/u-boot-spl-dtb.hex` | U-Boot's first stage, the SPL | Into the HPS image for the flash, by Task F. Not used for stage 1: a factory board already has this SPL in its flash. |
 
 ## What it needs first
 
@@ -27,7 +27,7 @@ with the Arm GNU 11.2 `aarch64-none-linux-gnu` cross-compiler (fetched from deve
 when the container image is built).
 
 Use that toolchain. A current distribution compiler was tried first and abandoned: TF-A wants
-its own toolchain name and the loader came out a different size.
+its own toolchain name and the SPL came out a different size.
 
 ## Source
 
@@ -38,13 +38,13 @@ its own toolchain name and the loader came out a different size.
 - Added here: `de25-nano.fragment`, merged into Terasic's `socfpga_agilex5_de25_nano_defconfig`. Its
   first option is `CONFIG_OF_LIBFDT_OVERLAY=y`, which Terasic's configuration leaves off.
   Without it U-Boot has neither the `fdt apply` command nor the `fdtoverlays` line of the boot
-  menu, and the device tree overlay for the FPGA design cannot be applied.
+  menu, and the device tree overlay of a core image cannot be applied.
 - Added here: `qspi-flash.patch`, applied to Terasic's U-Boot source, and
   `CONFIG_OF_BOARD_SETUP=y` in the fragment. They give Linux the board's QSPI flash as
   `/dev/mtd0` in stage 2:
   - The flash belongs to the chip's Secure Device Manager (SDM), which hands it to the SoC
-    only if the FPGA design in the flash says so. The first-stage loader asks. The stage 2
-    flash contents hand it over; the factory contents do not.
+    only if the design in the flash says so. The SPL asks. The stage 2 flash contents hand
+    it over; the factory contents do not.
   - Terasic's device tree for U-Boot turns the flash controller off; the patch turns it on,
     and makes the controller's driver refuse to start when the flash was not handed over,
     because touching the controller then stops U-Boot.
@@ -73,10 +73,9 @@ its own toolchain name and the loader came out a different size.
 - `CONFIG_CMD_HASH=y` in the fragment gives the `hash` command, with which the boot script
   names the saved flash contents by their crc32.
 
-Why Terasic's U-Boot and not mainline U-Boot: the first-stage loader of a factory board is
-built from this source at this commit (the loader built here is the same as Terasic's prebuilt
-one apart from the build date), and the U-Boot on the card has to work with the loader in the
-flash.
+Why Terasic's U-Boot and not mainline U-Boot: the SPL of a factory board is built from this
+source at this commit (the SPL built here is the same as Terasic's prebuilt one apart from
+the build date), and the U-Boot on the card has to work with the SPL in the flash.
 
 ## Commands
 
@@ -98,7 +97,8 @@ Check the result:
 
 ## How U-Boot boots the card
 
-Nothing is compiled into U-Boot for this; it is all on the card, and Task I puts it there.
+Nothing is compiled into U-Boot for this; it is all on the card: the script is
+`packages/boot/boot.cmd`, and Task I puts it there.
 [how-it-works.md](../how-it-works.md) has the whole sequence and the memory addresses. In
 short:
 
@@ -108,12 +108,12 @@ short:
    power is unplugged ([how-it-works.md](../how-it-works.md#writing-the-flash)). Otherwise it
    names the device tree file, gives the address and size limit for unpacking a compressed
    kernel, and, if `fpga.rbf` is on the partition and the SDM has handed the flash over,
-   loads the FPGA design; if that succeeds it also sets the address overlays are loaded to.
+   loads the core image; if that succeeds it also sets the address overlays are loaded to.
    Then it returns; U-Boot prints
    `SCRIPT FAILED: continuing...`, which is what it prints whenever a script returns.
 3. On partition 2 (ext4) it finds the boot menu `/boot/extlinux/extlinux.conf`, which names
    the kernel, the directory with that kernel's device tree, and the overlay. U-Boot applies
-   the overlay only if the script set its load address, that is, only if the FPGA design
+   the overlay only if the script set its load address, that is, only if the core image
    loaded.
 
 U-Boot keeps its saved environment in `uboot.env` on the FAT partition. The image has none;

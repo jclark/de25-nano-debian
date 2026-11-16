@@ -9,7 +9,7 @@ board as it is: putting it back is how you return to Terasic's system.
 
 ## Write the card
 
-Download `de25-nano-v0.1.img.xz` from the
+Download `de25-nano-v0.2.img.xz` from the
 [releases page](https://github.com/jclark/de25-nano-debian/releases).
 
 Write it to the card with [balenaEtcher](https://etcher.balena.io/), which runs on Windows,
@@ -18,7 +18,7 @@ and start. Raspberry Pi Imager does the same job with its "Use custom" choice. O
 command line works too, with the card's device name in place of `sdX`:
 
 ```
-xzcat de25-nano-v0.1.img.xz | sudo dd of=/dev/sdX bs=4M conv=fsync
+xzcat de25-nano-v0.2.img.xz | sudo dd of=/dev/sdX bs=4M conv=fsync
 ```
 
 If you log in with ssh keys, you can give the card your public keys now. Take the card out
@@ -41,22 +41,25 @@ Without one, the password is `debian`, and you are asked to choose a new one str
 `sudo` does not ask for a password.
 
 The board is now running Debian with its network port, and that is all: HDMI, the fan
-control and the signals on the 40-pin GPIO header need the FPGA design, which is the next step.
+control and the signals on the 40-pin GPIO headers come with the FPGA's core image, which
+is the next step.
 
-## Enable the FPGA design
+## Write the flash and select the core
 
 The board's flash chip holds Terasic's own FPGA design. This step replaces the contents of
-the flash, after saving them to the card, so that the board loads the FPGA design from the
-card at every boot.
+the flash, after saving them to the card, so that the board loads the FPGA's core image from
+the card at every boot.
 
 ```
-sudo de25-fpga enable
+sudo de25-flash write
+sudo de25-fpga select base
 sudo reboot
 ```
 
-The first command explains what will happen and asks for confirmation. Nothing is written
-until the reboot. During the reboot, watch the small LED beside the two push-buttons marked
-`HPS RST` and `HPS KEY`, next to the slide switches:
+The first command explains what will happen and asks for confirmation; the second chooses
+the core to load once the flash is written. Nothing is written until the reboot. During the
+reboot, watch the small LED beside the two push-buttons marked `HPS RST` and `HPS KEY`, next
+to the slide switches:
 
 | LED | Meaning |
 |---|---|
@@ -65,24 +68,42 @@ until the reboot. During the reboot, watch the small LED beside the two push-but
 | Blinking fast | It failed. See [flash-jtag.md](flash-jtag.md). |
 
 It takes about two minutes. After the power has been unplugged and plugged in again, the
-board starts with the FPGA design loaded: the fan goes quiet, a monitor on the HDMI socket
-shows the console, and the GPIO header signals listed in [how-it-works.md](how-it-works.md) are
+board starts with the core loaded: the fan goes quiet, a monitor on the HDMI socket shows
+the console, and the GPIO header signals listed in [how-it-works.md](how-it-works.md) are
 there.
 
 The saved flash contents are on the card's `FIRMWARE` drive as a file named
 `saved-` followed by eight characters, ending in `.rpd`. Copy it to another computer as well.
+
+## Updating
+
+A newer release does not need a new card. Download its `.deb` files from the
+[releases page](https://github.com/jclark/de25-nano-debian/releases) to the board and
+install them:
+
+```
+sudo apt install ./*.deb
+sudo reboot
+```
+
+A new kernel and a new version of the selected core take effect at that reboot. The flash is
+never written by an update. If a release has a new boot package that needs the flash
+written, the installation says so, and `sudo de25-flash write` does it when you choose; the
+release notes say when that is the case. Debian's own packages are updated in the usual way,
+with `sudo apt update` and `sudo apt upgrade`.
 
 ## Going back
 
 To put the saved flash contents back:
 
 ```
-sudo de25-fpga restore
+sudo de25-flash restore
 sudo systemctl halt
 ```
 
 Then unplug the power and plug it in again. The board runs this card as it did before the
-FPGA design was enabled. With Terasic's card in place of this one, it is as it came.
+flash was written. With Terasic's card in place of this one, it is as it came.
 
-`sudo de25-fpga status` shows at any time whether the design is enabled and what the flash
-holds.
+`sudo de25-flash status` and `sudo de25-fpga status` show at any time what the flash holds
+and which core is selected and running; `man de25-flash` and `man de25-fpga` describe the
+two commands.

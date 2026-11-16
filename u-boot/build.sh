@@ -3,7 +3,7 @@
 #
 # Usage: u-boot/build.sh
 # Output: out/u-boot/u-boot.itb            U-Boot with TF-A's bl31.bin inside, for the SD card
-#         out/u-boot/u-boot-spl-dtb.hex    the first-stage loader, for the flash image (fpga/)
+#         out/u-boot/u-boot-spl-dtb.hex    U-Boot's first stage, the SPL, for the HPS image (fpga/)
 # Needs: Docker, git, and network access to github.com and developer.arm.com.
 set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
