@@ -52,9 +52,12 @@ restart until its power has been unplugged and plugged in again.
 .PP
 .B de25-fpga
 keeps the two in step.
-Selecting a core is the ordinary thing to do with it; it has the flash written when the
-core needs that, after asking.
-Installing or upgrading packages never writes the flash.
+Selecting a core is the ordinary thing to do with it.
+When the flash does not hold what the core needs, the board has to be
+.IR reflashed :
+the HPS image the core needs is written to the flash.
+The command says so and asks first.
+Installing or upgrading packages never reflashes the board.
 .PP
 As the board is shipped, the flash holds Terasic's whole FPGA design, and the chip keeps
 the flash from the SoC.
@@ -78,8 +81,9 @@ Show what the flash holds, whether
 .B u-boot.itb
 and
 .B boot.scr
-on the card are those of an installed boot package, whether a flash write is waiting or has
-failed, the saved flash contents on the card, the selected core and the running core.
+on the card are those of an installed boot package, whether a reflash is waiting for the
+next boot or the last one failed, the saved flash contents on the card, the selected core
+and the running core.
 If a core was selected but is not running, say why, as far as can be told.
 What the flash holds is shown only to root, who alone can read it.
 .TP
@@ -92,22 +96,27 @@ Load the core
 .I name
 from the next boot on.
 .IP
-If the core can be seen to fit the flash, that is all.
-It is taken to fit if the core now running needs the same boot package, if the flash
-holds the HPS image of that boot package as installed, or if a flash write of that HPS
-image is waiting for the next boot.
+If the board does not need reflashing for this core, that is all.
+It does not when the core now running needs the same boot package, or when the flash
+holds the HPS image of that boot package as installed, or, on a board with the factory
+flash contents, when a reflash with that HPS image is already waiting for the next boot.
+The running core is no guide once the board has been reflashed and not yet restarted.
 .IP
-Otherwise the flash has to be written with the HPS image the core needs.
-The command says so and asks; on a yes it writes the flash, or leaves it for U-Boot to
-write at the next boot, puts the boot package's
+Otherwise the command says that the board needs to be reflashed, and asks.
+On a no it changes nothing.
+On a yes, where Linux can write the flash, it deselects the core selected until then,
+reflashes the board, puts the boot package's
 .B u-boot.itb
 and
 .B boot.scr
-on the card, and puts the core in place.
-On a no it changes nothing.
+on the card, and puts the new core in place; if the reflash fails, no core is left
+selected.
+On a board with the factory flash contents it puts the core and those two files in place
+and leaves the reflash for U-Boot to carry out at the next boot.
 .TP
 .B disable
 Load no core from the next boot on.
+A reflash that was waiting for the next boot is withdrawn.
 .TP
 .BR flash-write " [\fIboot\fR]"
 Write the HPS image of the boot package
@@ -116,17 +125,19 @@ to the flash, and put its
 .B u-boot.itb
 and
 .B boot.scr
-on the card, without choosing a core.
+on the card, without choosing a core: reflash the board.
 .I boot
 may be left out when one boot package is installed.
 This is for bringing a board to a newer build of the boot package.
 It says what it will do and asks first.
-If the flash already holds exactly that HPS image, the flash is left alone and only the
-two files on the card are renewed.
-If the selected core does not load on the HPS image being written, it is deselected.
+If the flash already holds exactly that HPS image, the board is not reflashed and only
+the two files on the card are renewed.
+A selected core that is not known to load on the HPS image being written is deselected:
+one that needs another boot package, or one that was put on the card by other means.
 .TP
 .BR flash-restore " [\fIfile\fR]"
-Write saved flash contents back, from Linux, and stop a core being loaded at boot.
+Reflash the board with saved flash contents, from Linux, and stop a core being loaded at
+boot.
 Without
 .I file
 it takes the saved file on the card, if there is exactly one.
@@ -135,7 +146,7 @@ With the factory contents back and Terasic's card in the board, the board is as 
 .SH OPTIONS
 .TP
 .B \-\-yes
-Do not ask before writing the flash.
+Do not ask before reflashing the board.
 .SH UPGRADES
 When the package of the selected core is upgraded, the new core image is put in place by
 itself and is loaded at the next boot, as a new kernel is.
@@ -149,7 +160,7 @@ When a boot package is upgraded and the flash holds exactly the new package's HP
 and
 .B boot.scr
 on the card are renewed and take effect at the next boot.
-If the HPS image has changed, nothing happens until
+If the HPS image has changed, nothing happens until the board is reflashed with
 .BR flash-write .
 .SH WITHOUT A CORE
 Without a core the board has its serial console and Ethernet, with the Ethernet PTP
@@ -218,7 +229,7 @@ sudo reboot
 .RE
 .fi
 .PP
-The first command says that the flash will be written, and asks.
+The first command says that the board needs to be reflashed, and asks.
 After the reboot, watch the LED; when it is steady on, unplug the power and plug it in
 again.
 .PP
