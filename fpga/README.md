@@ -183,17 +183,17 @@ so that `de25-fpga` on the board can tell which core is running.
 
 ### The applied design, kept in its own repository
 
-The result of `apply.sh` is the complete design. A copy of it is kept as one commit on top of
-Altera's tag, in a copy of Altera's repository:
+The result of `apply.sh` is the complete design. A copy of it is kept in a copy of Altera's
+repository, on a branch that starts at Altera's tag:
 
 `https://github.com/jclark/agilex5-ed-hps-baseline`, branch `de25-nano-debian/26.1.1`
 
-(That branch is still the design of release 0.1; it has to be made again for this one.)
-
-That branch is made only by running `apply.sh` and is never edited by hand; its commit message
-names the commit of this repository that made it. It is there so that the design can be built
-without the apply step, so that it survives Altera's repository changing, and so that there is
-a known good state to go back to when a newer Altera tag does not take the changes. A newer
+Each release of this repository adds one commit to the branch, whose contents are exactly
+what `apply.sh` leaves when run on Altera's tag; the commit before it is the previous
+release's design. The branch is never edited by hand, and each commit message names the
+commit of this repository that made it. It is there so that the design can be built without
+the apply step, so that it survives Altera's repository changing, and so that there is a
+known good state to go back to when a newer Altera tag does not take the changes. A newer
 tag gets a new branch.
 
 To build from that repository instead of applying the changes yourself:
@@ -202,17 +202,24 @@ To build from that repository instead of applying the changes yourself:
 DESIGN_REPO=https://github.com/jclark/agilex5-ed-hps-baseline DESIGN_REF=de25-nano-debian/26.1.1 fpga/build.sh
 ```
 
-To make such a branch (for a changed `fpga/`, or a new Altera tag named in `ALTERA_TAG`), in a
-clone of that repository with Altera's repository as a remote:
+To add a release's design to the branch, in a clone of that repository: run `apply.sh` on
+a clean checkout of Altera's tag, and commit the result with the branch's last commit as
+its parent. With a worktree, so that the branch's own checkout is left alone:
 
 ```
-git checkout -b de25-nano-debian/<release> <Altera's tag>
-cd terasic-de25-nano-devkit/baseline-a55
+git worktree add --detach ../applied <Altera's tag>
+cd ../applied/terasic-de25-nano-devkit/baseline-a55
 <this repository>/fpga/q <this repository>/fpga/apply.sh .
-git add -A && git commit        # say which commit of this repository made it
+cd ../..
+git add -A
+git commit-tree $(git write-tree) -p de25-nano-debian/26.1.1 -F <file with the message>
 ```
 
-Then build it before publishing it.
+That prints the new commit; `git merge --ff-only <commit>` on the branch takes it. For a new
+Altera tag, start a new branch at that tag instead and commit there in the ordinary way.
+
+The result is the design this repository builds: compare its files with those of
+`work/fpga/base` after a build, or build from it, before publishing it.
 
 ## Commands
 
