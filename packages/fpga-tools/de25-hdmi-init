@@ -10,11 +10,21 @@
 # AVI infoframe from it, and that it only enables the output when a monitor is connected.
 #
 # Usage: de25-hdmi-init [i2c-bus] [dvi]
-#   i2c-bus  default 0: the SoC's I2C0, through the FPGA
+#   i2c-bus  the bus number; default: the bus of the SoC's I2C0 controller (10c02800), which
+#            reaches the chip through the FPGA. Bus numbers are given out in the order the
+#            controllers start, so the number is looked up, not assumed.
 #   dvi      send DVI, not HDMI (the driver chooses from the EDID; HDMI is right for a monitor
 #            or TV with an HDMI socket)
 # Needs i2c-tools and root.
-bus=${1:-0}; a=0x39
+bus=${1:-}; a=0x39
+case $bus in
+''|dvi)
+    [ "$bus" != dvi ] || set -- "" dvi
+    bus=$(ls -d /sys/bus/platform/devices/10c02800.i2c/i2c-* 2>/dev/null | head -n 1)
+    bus=${bus##*/i2c-}
+    [ -n "$bus" ] || { echo "de25-hdmi-init: the SoC's I2C0 controller has no bus: no core image that connects it is loaded" >&2; exit 1; }
+    ;;
+esac
 hdmi=0x02; [ "$2" = dvi ] && hdmi=0x00
 w() { i2cset -y "$bus" $a "$1" "$2"; }                 # write a register
 m() { i2cset -y -m "$2" "$bus" $a "$1" "$3"; }         # change only the bits in the mask: reg mask value

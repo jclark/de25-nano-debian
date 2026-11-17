@@ -17,9 +17,9 @@ It has no Platform Designer scripts and no connections to the SoC system, so it 
 
 ```
 fpga/build.sh fpga/example
-packages/mkdeb-core example 0.1 out/fpga/example out/packages
+packages/mkdeb-core example 0.1 out/fpga/example out/fpga/example
 ```
 
 The first command leaves `fpga.rbf` and `fpga.dtbo` in `out/fpga/example/`; the second makes
-`de25-nano-core-example_0.1_arm64.deb`. On a board, after installing the package:
+`de25-nano-core-example_0.1_arm64.deb` there. On a board, after installing the package:
 `sudo de25-fpga select example` and a reboot.

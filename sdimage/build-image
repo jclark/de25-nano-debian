@@ -17,7 +17,6 @@
 #                      select", on the board.
 #   u-boot.itb       without a boot package: U-Boot and TF-A from Task B; it has to match the
 #   boot.cmd           SPL in the board's QSPI flash; and the source of the boot script
-#   config           optional, the kernel configuration
 #   authorized_keys  optional, ssh keys for the user
 #
 # Without a boot package and a core the image gives console and network only, on any board.
@@ -35,7 +34,7 @@
 #
 # Needs Docker, and on a host that is not arm64, qemu-user binfmt for aarch64.
 set -eu
-[ $# -eq 2 ] || { sed -n '2,38p' "$0"; exit 2; }
+[ $# -eq 2 ] || { sed -n '2,35p' "$0"; exit 2; }
 here=$(dirname "$(readlink -f "$0")")
 in=$(readlink -f "$1"); out=$(readlink -f "$2"); mkdir -p "$out"
 docker build -q -t de25-nano-sdimage "$here" >/dev/null

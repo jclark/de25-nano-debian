@@ -30,7 +30,10 @@ for f in "$out"/*; do
     case ${f##*/} in NOTES.md|'*') ;; *) rm -f "$f" ;; esac
 done
 xz -T0 -9 -c "$img" > "$out/de25-nano-$version.img.xz"
-cp "$kdeb" "$top"/out/packages/de25-nano-*.deb "$out/"
+# The packages of this release, by name: nothing else that happens to be in out/packages.
+cp "$kdeb" "$top/out/packages/de25-nano-fpga-tools_${TOOLS_VERSION}_all.deb" \
+    "$top/out/packages/de25-nano-boot-${boot}_${BOOT_VERSION}_arm64.deb" \
+    "$top/out/packages/de25-nano-core-base_${CORE_BASE_VERSION}_arm64.deb" "$out/"
 cp "$top/out/packages/de25-nano-boot-${boot}_$BOOT_VERSION.hps.jic" "$out/"
 cp "$top/out/kernel/config" "$out/config-$krel"
 cp "$top/out/kernel/Module.symvers" "$out/Module.symvers-$krel"

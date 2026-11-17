@@ -45,9 +45,19 @@ def fb():
     f = open('/dev/fb0', 'r+b'); return mmap.mmap(f.fileno(), W * H * 4)
 def put(m, y0, rows):
     m[y0 * W * 4:(y0 + len(rows)) * W * 4] = b''.join(rows)
+def i2c_bus():
+    # The bus of the SoC's I2C0 controller, which reaches the transmitter through the core
+    # image. Bus numbers are given out in the order the controllers start: look it up.
+    import glob
+    b = glob.glob('/sys/bus/platform/devices/10c02800.i2c/i2c-*')
+    if not b: sys.exit("the SoC's I2C0 controller has no bus: is a core image with the video block loaded?")
+    return b[0].rsplit('-', 1)[1]
+BUS = None
 def i2c(reg, val=None):
-    if val is None: return subprocess.run(['i2cget', '-y', '0', '0x39', hex(reg)], capture_output=True, text=True).stdout.strip()
-    subprocess.run(['i2cset', '-y', '0', '0x39', hex(reg), hex(val)], check=True)
+    global BUS
+    if BUS is None: BUS = i2c_bus()
+    if val is None: return subprocess.run(['i2cget', '-y', BUS, '0x39', hex(reg)], capture_output=True, text=True).stdout.strip()
+    subprocess.run(['i2cset', '-y', BUS, '0x39', hex(reg), hex(val)], check=True)
 mode = sys.argv[1] if len(sys.argv) > 1 else 'pattern'
 m = fb()
 try: open('/sys/class/graphics/fbcon/cursor_blink', 'w').write('0')

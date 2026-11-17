@@ -161,21 +161,26 @@ edge. The signals are 3.3 V logic.
 
 | Pin | JP1 | In Linux | JP2 | In Linux |
 |---|---|---|---|---|
-| 6 | PPS out (output) | PTP clock `/dev/ptp0`, periodic output channel 1 | | |
+| 6 | PPS out (output) | The Ethernet PTP clock, periodic output channel 1 | | |
 | 8 | UART0 TX (output) | `/dev/ttyS1` | | |
 | 10 | UART0 RX (input) | `/dev/ttyS1` | | |
 | 11 | 5 V (up to 1 A) | | 5 V | |
 | 12 | ground | | ground | |
-| 14 | PPS in (input) | PTP clock `/dev/ptp0`, external timestamp channel 1 | | |
+| 14 | PPS in (input) | The Ethernet PTP clock, external timestamp channel 1 | | |
 | 29 | 3.3 V (up to 1.5 A) | | 3.3 V | |
 | 30 | ground | | ground | |
 | 33 | SPI SCLK (output) | SPI master 0 | SPI SCLK (output) | SPI master 1 |
 | 35 | SPI MOSI (output) | SPI master 0 | SPI MOSI (output) | SPI master 1 |
-| 36 | I2C SCL | I2C bus `i2c2` | I2C SCL | I2C bus `i2c3` |
+| 36 | I2C SCL | I2C_EMAC0, `10c02a00.i2c` | I2C SCL | I2C_EMAC1, `10c02b00.i2c` |
 | 37 | SPI MISO (input) | SPI master 0 | SPI MISO (input) | SPI master 1 |
-| 38 | I2C SDA | I2C bus `i2c2` | I2C SDA | I2C bus `i2c3` |
+| 38 | I2C SDA | I2C_EMAC0, `10c02a00.i2c` | I2C SDA | I2C_EMAC1, `10c02b00.i2c` |
 | 39 | SPI SS0 (output) | SPI master 0 | SPI SS0 (output) | SPI master 1 |
 | 40 | SPI SS1 (output) | SPI master 0 | SPI SS1 (output) | SPI master 1 |
+
+Linux numbers PTP clocks and I2C buses in the order their drivers start, so the numbers
+are not fixed. With the base core alone the Ethernet PTP clock is `/dev/ptp0`; `ethtool -T
+end0` names it in any case. The bus number of an I2C controller is in
+`/sys/bus/platform/devices/<address>.i2c/`, as a directory `i2c-<number>`.
 
 The other pins are not connected by the base core. The positions leave room for a design
 built on the base to put more pulse inputs and serial ports beside them.
@@ -207,7 +212,7 @@ flowchart LR
 | Frame buffer | 8 MB of system RAM at 0xBF000000, reserved | Holds one frame: 1920x1080 pixels, 32 bits per pixel (`x8r8g8b8`) |
 | Video block, `fpga/src/hdmi_scanout.sv` | In the base core (`fpga.rbf`) | Generates the 1080p60 video timing from a 148.5 MHz pixel clock, and reads the frame buffer from system RAM once per frame through the SoC's FPGA-to-SDRAM bridge. It has no registers: it runs as soon as the core image is loaded. |
 | HDMI transmitter, ADV7513 | A chip on the board | Converts the FPGA's parallel RGB, sync and clock signals to HDMI |
-| `de25-hdmi-init` and its systemd unit | `/usr/sbin`, from `de25-nano-fpga-tools` | Configures the transmitter over I2C at every boot; the I2C bus reaches the chip through the FPGA. The output is always enabled and the monitor's EDID is not read. |
+| `de25-hdmi-init` and its systemd unit | `/usr/sbin`, from `de25-nano-fpga-tools` | Configures the transmitter over I2C at every boot; the I2C bus reaches the chip through the FPGA, and the unit runs only when the core's overlay has enabled that bus's controller. The output is always enabled and the monitor's EDID is not read. |
 | Device tree overlay, `fpga.dtbo` | On the card | Reserves the 8 MB, and describes the frame buffer in a `simple-framebuffer` node |
 | Kernel | `CONFIG_FB_SIMPLE`, from the config fragment | Provides `/dev/fb0` from that node |
 | Boot menu | `console=tty0` | Puts the text console on the frame buffer |

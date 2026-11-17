@@ -15,8 +15,7 @@
 # The frame buffer's address and size are taken from src/hdmi_scanout.sv, the logic that reads
 # it, so the overlay cannot disagree with the design.
 #
-# Needs dtc (Debian/Ubuntu package device-tree-compiler), sed and a POSIX shell. fpga/build.sh
-# runs it in the Quartus container, which has dtc.
+# Needs dtc (Debian/Ubuntu package device-tree-compiler), sed and a POSIX shell.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 top=$(dirname "$here")

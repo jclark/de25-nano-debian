@@ -135,9 +135,10 @@ make -j3 test       # the same, then boot the image in QEMU and check it
 A task is run again only when something it is made from has changed: its own files in this
 repository, or the output of a task it uses. So after a change to the packages, `make`
 rebuilds the packages and the image and leaves U-Boot, the kernel and the FPGA design
-alone, and a second `make` straight after the first does nothing. `-j3` runs Tasks B, K
-and F at the same time. Each task prints a line when it starts and when it finishes, and
-keeps its output in `work/logs/`.
+alone, and a second `make` straight after the first does nothing. `-j3` lets tasks run at
+the same time: the kernel alongside U-Boot and the FPGA design, which follows U-Boot
+because it uses U-Boot's SPL. Each task prints a line when it starts and when it finishes,
+and keeps its output in `work/logs/`.
 
 | | |
 |---|---|
@@ -192,7 +193,7 @@ On the board, in stage 1:
 ```
 uname -r                        # the kernel built in Task K
 ip -br addr show end0           # an address from DHCP
-ls /sys/class/ptp/              # ptp0: the Ethernet MAC's clock
+ls /sys/class/ptp/              # ptp0: the Ethernet MAC's clock (ethtool -T end0 names it)
 sudo ethtool -T end0            # hardware timestamping
 systemctl --failed              # nothing
 ```

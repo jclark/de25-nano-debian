@@ -1,11 +1,13 @@
 [Unit]
 Description=Set up the DE25-Nano HDMI transmitter (ADV7513) for the FPGA scan-out
-ConditionPathExists=/sys/bus/i2c/devices/i2c-0
+# The SoC's I2C0 controller, which reaches the transmitter through the core image; the
+# overlay of a core that connects it enables the controller. Its bus has no fixed number.
+ConditionPathExistsGlob=/sys/bus/platform/devices/10c02800.i2c/i2c-*
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/sbin/de25-hdmi-init 0
+ExecStart=/usr/sbin/de25-hdmi-init
 
 [Install]
 WantedBy=multi-user.target

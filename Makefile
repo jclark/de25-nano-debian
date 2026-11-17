@@ -1,7 +1,8 @@
 # Build the card image and the packages from source. See build.md.
 #
 #   make             everything that is out of date, up to the card image
-#   make -j3         the same, with U-Boot, the kernel and the FPGA design built together
+#   make -j3         the same, with the kernel built alongside U-Boot and the FPGA design
+#                    (the FPGA design uses U-Boot's SPL, so it follows U-Boot)
 #   make test        also boot the image in QEMU and check it
 #   make u-boot | kernel | fpga | packages | image
 #                    one task, and whatever it needs that is out of date
@@ -73,15 +74,18 @@ work/fpga/base.sources: $(FPGA_SRC)
 	@rm -rf work/fpga/base; mkdir -p work/fpga; touch $@
 $(FPGA): work/fpga/base.sources $(SPL)
 	$(call run,F,fpga/build.sh)
-	@touch $@
+	@test -s $@ && touch $@
 example: out/fpga/example/fpga.rbf
 work/fpga/example.sources: $(FPGA_SRC) $(call src,fpga/example)
 	@rm -rf work/fpga/example; mkdir -p work/fpga; touch $@
 out/fpga/example/fpga.rbf: work/fpga/example.sources $(SPL)
 	$(call run,example,fpga/build.sh fpga/example)
-	@touch $@
+	@test -s $@ && touch $@
 IMAGE := out/sdimage/de25-nano.img
 else
+# The scripts of Tasks P and I see NOFPGA too, and leave the boot package and the core out
+# even when an earlier build left them in out/.
+export NOFPGA
 FPGA :=
 fpga: ; @echo "NOFPGA is set: the FPGA design is left out"
 IMAGE := out/sdimage/de25-nano-nofpga.img
@@ -98,7 +102,7 @@ $(PACKAGES): $(call src,packages) fpga/BOOT_NAME LICENSE $(UBOOT) $(FPGA)
 image: $(IMAGE)
 $(IMAGE): $(filter-out sdimage/qemu-test.sh sdimage/qemu/%,$(call src,sdimage)) packages/boot/boot.cmd $(KERNEL) $(PACKAGES) $(UBOOT)
 	$(call run,I,sdimage/build.sh)
-	@touch $@
+	@test -s $@ && touch $@
 
 # ---- The test of the image in QEMU
 TESTED := out/sdimage/.tested

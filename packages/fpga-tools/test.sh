@@ -27,7 +27,7 @@ mkcore() { d=$lib/core/$1; mkdir -p "$d"; blob "$d/fpga.rbf" 2048; blob "$d/fpga
 running() { mkdir -p "$dt"; printf '%s\0' "$1" > "$dt/de25-nano,core"; printf '%s\0' "$2" > "$dt/de25-nano,boot"; }
 not_running() { rm -rf "$t/proc/device-tree"; }
 r=0
-reboot_() { r=$((r + 1)); echo "boot-$r" > "$t/proc/sys/kernel/random/boot_id"; }
+reboot_() { r=$((r + 1)); echo "boot-$r" > "$t/proc/sys/kernel/random/boot_id"; rm -rf "$t/run"; }
 selected() { [ -f "$fat/fpga.rbf" ] && cmp -s "$lib/core/$1/fpga.rbf" "$fat/fpga.rbf" && cmp -s "$lib/core/$1/fpga.dtbo" "$t/boot/dtbo/fpga.dtbo" && grep -q "^core=$1\$" "$fat/fpga-core.txt"; }
 flash_is() { cmp -s -n 4096 "$t/dev/mtd0" "$lib/boot/$1/hps.rpd"; }
 crc() { gzip -1 -c "$1" | tail -c 8 | head -c 4 | od -An -tx4 | tr -d ' \n'; }
@@ -98,11 +98,38 @@ expect "has been reflashed" "select of a core for another boot package writes th
 flash_is other || bad "the flash does not hold the other HPS image"
 selected odd || bad "odd not selected"
 cmp -s "$lib/boot/other/u-boot.itb" "$fat/u-boot.itb" || bad "the other U-Boot is not on the card"
+expect "needs to be reflashed" "before the power cycle, the running core is no proof of what the flash holds" -- sh -c "echo n | sh '$here/de25-fpga' select base"
+selected odd || bad "a declined select changed the selection"
 reboot_; running odd other
 expect "no core is selected now" "flash-write of an HPS image the selected core does not load on deselects it" -- fpga flash-write --yes base
 [ ! -e "$fat/fpga.rbf" ] && [ ! -e "$t/boot/dtbo/fpga.dtbo" ] || bad "a core that does not fit was left selected"
 flash_is base || bad "flash-write base"
 expect "base tic" "and names the cores that do" -- sh -c "sh '$here/de25-fpga' flash-write --yes other >/dev/null; sh '$here/de25-fpga' select --yes odd >/dev/null; sh '$here/de25-fpga' flash-write --yes base"
+
+echo "# A flash write that fails"
+reboot_; not_running; fpga disable >/dev/null
+dd if="$lib/boot/other/hps.rpd" of="$t/dev/mtd0" conv=notrunc status=none
+fpga select odd >/dev/null; selected odd || bad "set-up for the failing write"
+chmod a-w "$t/dev/mtd0"
+refuse "select fails when the flash cannot be written" -- fpga select --yes base
+chmod u+w "$t/dev/mtd0"
+[ ! -e "$fat/fpga.rbf" ] || bad "a failed flash write left a core selected"
+ok "and leaves no core selected"
+flash_is other || bad "the flash changed"
+
+echo "# A request that will not be carried out, and one that is withdrawn"
+reboot_
+cp "$lib/boot/base/hps.rpd" "$fat/write-on-boot.rpd"; printf 'flash_new_crc=0\nflash_new_boot=base\n' > "$fat/write-on-boot.txt"
+expect "needs to be reflashed" "a request on a board that will not act on it is no proof" -- sh -c "echo n | sh '$here/de25-fpga' select base"
+[ ! -e "$fat/fpga.rbf" ] || bad "select trusted a stale request"
+mv "$t/dev/mtd0" "$t/mtd0.aside"
+fpga select --yes base >/dev/null; [ -f "$fat/write-on-boot.rpd" ] || bad "set-up for disable"
+expect "will not be reflashed" "disable withdraws a waiting reflash" -- fpga disable
+[ ! -e "$fat/write-on-boot.rpd" ] && [ ! -e "$fat/write-on-boot.txt" ] || bad "disable left the request"
+mv "$t/mtd0.aside" "$t/dev/mtd0"
+: > "$lib/core/tic/boot"
+refuse "a core that names no boot package is not selected" -- fpga select --yes tic
+echo base > "$lib/core/tic/boot"
 
 echo "# A refused core"
 reboot_; not_running
@@ -135,10 +162,11 @@ expect "no core is selected now" "flash-write does not leave a core it cannot vo
 rmdir "$dt/framebuffer@bf000000"
 
 echo "# Restore"
-blob "$t/dev/mtd0.x" 1; rm "$t/dev/mtd0.x"
-refuse "flash-restore refuses a file that is not what its name says" -- fpga flash-restore --yes
+refuse "flash-restore refuses a file that is not the whole flash" -- fpga flash-restore --yes
 head -c 16777216 /dev/urandom > "$t/factory"
-rm "$fat/saved-0badcafe.rpd"; cp "$t/factory" "$fat/saved-$(crc "$t/factory").rpd"
+rm "$fat/saved-0badcafe.rpd"; cp "$t/factory" "$fat/saved-0badcafe.rpd"
+refuse "flash-restore refuses a file that is not what its name says" -- fpga flash-restore --yes
+mv "$fat/saved-0badcafe.rpd" "$fat/saved-$(crc "$t/factory").rpd"
 fpga select base >/dev/null
 expect "has been reflashed" "flash-restore" -- fpga flash-restore --yes
 cmp -s "$t/factory" "$t/dev/mtd0" || bad "flash-restore did not write the flash"

@@ -29,11 +29,11 @@ cp "$deb" "$tools" "$in/"
 name=de25-nano.img
 boot=$(ls "$top"/out/packages/de25-nano-boot-*.deb 2>/dev/null | head -n 1)
 core=$(ls "$top"/out/packages/de25-nano-core-base_*.deb 2>/dev/null | head -n 1)
-if [ -n "$boot" ] && [ -n "$core" ]; then
+if [ -z "${NOFPGA:-}" ] && [ -n "$boot" ] && [ -n "$core" ]; then
     cp "$boot" "$core" "$in/"
 else
     name=de25-nano-nofpga.img
-    echo "sdimage/build.sh: no boot and core packages in out/packages (Tasks F and P): building $name"
+    echo "sdimage/build.sh: without the boot and core packages (NOFPGA is set, or they are not in out/packages): building $name"
     need "$top/out/u-boot/u-boot.itb" "Task B (u-boot/build.sh)"
     cp "$top/out/u-boot/u-boot.itb" "$top/packages/boot/boot.cmd" "$in/"
 fi

@@ -89,7 +89,7 @@ if [ -n "$core" ]; then
     # platform-designer.txt: one qsys-script run a line, "SYSTEM.qsys SCRIPT [ARGS...]", the
     # script's path relative to CORE_DIR.
     if [ -f "$core/platform-designer.txt" ]; then
-        while read -r sys script args; do
+        while read -r sys script args || [ -n "$sys" ]; do
             case $sys in ''|'#'*) continue ;; esac
             [ -f "$sys" ] || fail "platform-designer.txt: no $sys in the design"
             [ -f "$core/$script" ] || fail "platform-designer.txt: no $script in $core"
@@ -127,5 +127,8 @@ if ! cmp -s hps-settings.txt "$here/hps-settings.txt"; then
 de25-nano-boot-$(cat "$here/BOOT_NAME"). In the base, a change of settings is a new HPS image:
 see fpga/README.md, \"The SoC settings\". A derived design must not change them."
 fi
+
+# Only now is the design complete: build.sh compiles nothing without this file.
+echo "applied by fpga/apply.sh; the SoC settings were checked" > apply-complete.txt
 
 echo "apply.sh: done. Next: generate and compile (fpga/README.md)."

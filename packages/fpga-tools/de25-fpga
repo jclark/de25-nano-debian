@@ -53,6 +53,9 @@ request=$fat/write-on-boot.rpd
 request_txt=$fat/write-on-boot.txt
 failed=$fat/write-on-boot-failed.txt
 selected_txt=$fat/fpga-core.txt
+# Left when the flash is written from Linux, until the next boot: from then until the power
+# cycle the core that is running says nothing about what the flash holds.
+reflashed=$root/run/de25-fpga-reflashed
 flash_bytes=16777216
 yes=no
 
@@ -94,6 +97,9 @@ core_boot() { cat "$(core_dir "$1")/boot"; }
 need_core() {
     [ -f "$(core_dir "$1")/fpga.rbf" ] && [ -f "$(core_dir "$1")/fpga.dtbo" ] && [ -f "$(core_dir "$1")/boot" ] ||
         fail "no core $1 (no fpga.rbf, fpga.dtbo and boot in $(core_dir "$1")). Installed: $(core_names | tr '\n' ' ')"
+    case $(core_boot "$1") in
+    ''|*[!a-z0-9-]*) fail "$(core_dir "$1")/boot does not name a boot package" ;;
+    esac
 }
 need_boot() {
     for f in hps.rpd u-boot.itb boot.scr; do
@@ -144,10 +150,13 @@ pending_boot() { # the boot package a waiting flash write is for, or nothing
 }
 # fits BOOT: can it be seen that a core for that boot package will load?
 fits() {
-    # The core now running loads on the same HPS image.
-    [ "$(running_boot)" != "$1" ] || return 0
-    # A flash write of that HPS image is waiting for the next boot.
-    [ "$(pending_boot)" != "$1" ] || return 0
+    [ -n "$1" ] || return 1
+    # The core now running loads on the same HPS image: a running core is proof of what the
+    # flash held at power-on. Not after the flash has been written in this boot.
+    if [ ! -e "$reflashed" ] && [ "$(running_boot)" = "$1" ]; then return 0; fi
+    # A flash write of that HPS image is waiting for the next boot. U-Boot carries it out
+    # only on a board that keeps the flash from the SoC.
+    if ! flash_handed_over && [ "$(pending_boot)" = "$1" ]; then return 0; fi
     # The flash holds that HPS image, byte for byte.
     [ -f "$(boot_dir "$1")/hps.rpd" ] && flash_holds "$(boot_dir "$1")/hps.rpd"
 }
@@ -180,6 +189,8 @@ card_put() {    # card_put BOOT: put them there, keeping the U-Boot that was the
 }
 remove_request() { rm -f "$request" "$request.new" "$request_txt" "$failed"; }
 mtd_write() {    # mtd_write FILE: write and verify, from Linux
+    mkdir -p "${reflashed%/*}"
+    : > "$reflashed"
     if [ -n "$root" ]; then
         dd if="$1" of="$mtd" conv=notrunc status=none
     else
@@ -282,7 +293,7 @@ select)
     if fits "$boot"; then
         put_core "$arg"
         echo "The \"$arg\" FPGA core will be loaded from the next boot on."
-        if [ -n "$(pending_boot)" ]; then
+        if ! flash_handed_over && [ -n "$(pending_boot)" ]; then
             echo "The board will still be reflashed at that boot, as asked earlier."
         else
             echo "The board does not need reflashing."
@@ -293,8 +304,17 @@ select)
 The board needs to be reflashed to work with the "$arg" FPGA core.
 EOF
         flash_ask
-        put_core "$arg"
-        flash_do "$boot"
+        if flash_handed_over; then
+            # No core is left selected while the flash is written: if the write fails, the
+            # board is not left with a core that does not fit.
+            remove_core
+            flash_do "$boot"
+            put_core "$arg"
+        else
+            # U-Boot writes the flash at the next boot; the request goes on the card last.
+            put_core "$arg"
+            flash_do "$boot"
+        fi
         echo "$after"
         echo "After that, the \"$arg\" FPGA core is loaded at every boot."
     fi
@@ -305,6 +325,11 @@ disable)
     need_fat
     remove_core
     echo "No FPGA core will be loaded from the next boot on."
+    # A reflash that was waiting for the next boot is withdrawn with it.
+    if [ -f "$request" ]; then
+        echo "The board will not be reflashed at the next boot."
+    fi
+    remove_request
     ;;
 flash-write)
     need_root flash-write

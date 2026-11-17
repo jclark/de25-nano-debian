@@ -15,7 +15,7 @@
 # A derived design has no HPS image of its own: its core image loads on the base's.
 #
 # Needs: Quartus Pro of the version in fpga/QUARTUS_VERSION (fpga/q finds it; fpga/README.md,
-#        "Tools to download"), git, make, cmake, patch, network access;
+#        "Tools to download"), git, make, cmake, patch, dtc, network access;
 #        out/u-boot/u-boot-spl-dtb.hex from Task B (for the last step only).
 #
 # Settings, as environment variables, all optional:
@@ -52,6 +52,9 @@ work=$(cd "$work" && pwd); out=$(cd "$out" && pwd)
 DE25_Q_MOUNTS="$work $out $core"
 export DE25_Q_MOUNTS
 
+for t in git make cmake patch dtc; do
+    command -v $t >/dev/null || fail "$t is not installed (fpga/README.md, \"Tools to download\")"
+done
 applied=${DESIGN_REPO:+yes}
 DESIGN_REPO=${DESIGN_REPO:-https://github.com/altera-fpga/agilex5-ed-hps-baseline}
 DESIGN_REF=${DESIGN_REF:-$(cat "$top/fpga/ALTERA_TAG")}
@@ -63,9 +66,17 @@ design=$src/terasic-de25-nano-devkit/baseline-a55
 [ -d "$src/.git" ] || git clone --depth 1 -b "$DESIGN_REF" "$DESIGN_REPO" "$src"
 [ -f "$design/top.qpf" ] || fail "no design in $design"
 if [ ! -e "$design/src/hdmi_scanout.sv" ]; then
+    [ -z "$applied" ] || fail "$DESIGN_REPO at $DESIGN_REF does not hold the applied design"
     # shellcheck disable=SC2086
     (cd "$design" && "$q" "$top/fpga/apply.sh" . $core)
 fi
+# apply.sh ends by checking the SoC settings, and only then leaves apply-complete.txt. A
+# design it gave up on part-way, or one from a repository of applied designs made for other
+# settings, is not compiled: its core image would not load on the HPS image it is named for.
+[ -f "$design/apply-complete.txt" ] ||
+    fail "the changes were not applied completely to $design (apply.sh failed, or the design is from before this check): see the log, then delete $work"
+cmp -s "$design/hps-settings.txt" "$top/fpga/hps-settings.txt" ||
+    fail "the SoC settings of $design are not those of fpga/hps-settings.txt: delete $work"
 have=base; [ ! -f "$design/core-name.txt" ] || have=$(cat "$design/core-name.txt")
 [ "$have" = "$name" ] || fail "$design holds the design $have, not $name: delete $work"
 
@@ -80,10 +91,8 @@ sof=$design/output_files/baseline_a55.sof
 # 3. Overlay: independent of the compile. The base's, which reads the video block's source,
 # then the derived design's fragments, then the names of the core and of the boot package
 # whose HPS image it loads on.
-# It needs dtc.
-ovl=
-# shellcheck disable=SC2046,SC2086
-(cd "$top" && $ovl "$top/fpga/overlay/build.sh" "$out/fpga.dtbo" "$name" "$boot" \
+# shellcheck disable=SC2046
+(cd "$top" && "$top/fpga/overlay/build.sh" "$out/fpga.dtbo" "$name" "$boot" \
     $([ -z "$core" ] || ls "$core"/overlay/*.dtso 2>/dev/null))
 
 # 4. Split the compiled design, with the SPL from Task B. One command gives the files:

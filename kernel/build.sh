@@ -31,21 +31,27 @@ if [ "${1:-}" = --head ]; then
     exit 0
 fi
 
+# The commit this script last fetched is noted in the clone. Only a clone that is still at
+# that commit, with nothing changed, is brought up to date: local commits are never dropped.
+fetched=$work/linux/.git/de25-fetched
 if [ ! -d "$work/linux/.git" ]; then
     git clone --depth 1 -b "$LINUX_BRANCH" "$LINUX_REPO" "$work/linux"
+    git -C "$work/linux" rev-parse HEAD > "$fetched"
 elif [ "$(git -C "$work/linux" remote get-url origin 2>/dev/null)" = "$LINUX_REPO" ] &&
      [ "$(git -C "$work/linux" rev-parse --abbrev-ref HEAD)" = "$LINUX_BRANCH" ] &&
+     [ "$(git -C "$work/linux" rev-parse HEAD)" = "$(cat "$fetched" 2>/dev/null)" ] &&
      [ -z "$(git -C "$work/linux" status --porcelain --untracked-files=no)" ]; then
     # The branch moves forward (kernel/README.md): bring the clone this script made up to it.
     # A fetch that gets no answer is given up after a minute, and the clone is built as it is.
     if timeout 300 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 -C "$work/linux" \
            fetch --depth 1 origin "$LINUX_BRANCH"; then
         git -C "$work/linux" reset -q --hard FETCH_HEAD
+        git -C "$work/linux" rev-parse HEAD > "$fetched"
     else
         echo "kernel/build.sh: could not fetch $LINUX_BRANCH from $LINUX_REPO: building the source already in work/linux"
     fi
 else
-    echo "kernel/build.sh: work/linux is not an unchanged clone of $LINUX_REPO $LINUX_BRANCH: building it as it is"
+    echo "kernel/build.sh: work/linux is not the clone of $LINUX_REPO $LINUX_BRANCH as this script fetched it: building it as it is"
 fi
 git -C "$work/linux" log -1 --format='kernel source: %h %s'
 

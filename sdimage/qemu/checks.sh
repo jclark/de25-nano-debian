@@ -17,21 +17,24 @@ run "the root file system grew to the card" test "$(df --output=size -BM / | tai
 no "the first-boot unit is switched off" systemctl is-enabled de25-firstboot.service
 run "ssh accepts keys only" grep -q 'PasswordAuthentication no' /etc/ssh/sshd_config.d/10-keys-only.conf
 run "dpkg has nothing half installed" sh -c '[ -z "$(dpkg --audit)" ]'
-for p in de25-nano-fpga-tools de25-nano-boot-base de25-nano-core-base "linux-image-$KREL"; do
+# An image made without Task F has no boot package and no core.
+if [ -d $lib/core/base ]; then full=yes; pkgs="de25-nano-boot-base de25-nano-core-base"; else full=no; pkgs=; fi
+for p in de25-nano-fpga-tools $pkgs "linux-image-$KREL"; do
     has "package $p is installed" '^ii' dpkg-query -W -f='${db:Status-Abbrev}\n' "$p"
 done
 run "the man page is there" man -w de25-fpga
-has "de25-hdmi-init.service is enabled and was skipped (no I2C bus 0)" 'enabled' systemctl is-enabled de25-hdmi-init.service
+has "de25-hdmi-init.service is enabled" 'enabled' systemctl is-enabled de25-hdmi-init.service
+has "and was skipped: no core has enabled its I2C controller" 'ConditionResult=no' systemctl show -p ConditionResult de25-hdmi-init.service
 no "Linux has no flash, as on a factory board" test -e /dev/mtd0
 has "status: no access to the flash" 'Flash: factory contents' sudo de25-fpga status
-has "status: the card has the boot package's U-Boot" 'U-Boot on the SD card: de25-nano-boot-base' sudo de25-fpga status
+[ $full = no ] || has "status: the card has the boot package's U-Boot" 'U-Boot on the SD card: de25-nano-boot-base' sudo de25-fpga status
 has "status: nothing selected" 'Selected core: none' sudo de25-fpga status
 has "status: nothing running" 'Running core: none' sudo de25-fpga status
 has "a user's login shell finds de25-fpga, and status needs no root" 'Selected core: none' bash -lc 'de25-fpga status'
-has "list shows the base core" '^base .*de25-nano-boot-base' sudo de25-fpga list
+[ $full = no ] || has "list shows the base core" '^base .*de25-nano-boot-base' sudo de25-fpga list
 no "no core on the FAT partition of a new card" test -e $fat/fpga.rbf
 
-if [ "$1" = first ]; then
+if [ "$1" = first ] && [ $full = yes ]; then
     no "select without a yes changes nothing" sh -c 'echo n | sudo de25-fpga select base'
     no "and leaves no request for a flash write" test -e $fat/write-on-boot.rpd
     has "select asks for the flash write that the core needs" 'will be reflashed at the next boot' sudo de25-fpga select --yes base
@@ -47,8 +50,8 @@ if [ "$1" = first ]; then
     run "the boot menu has an entry for the kernel" grep -q "linux /boot/vmlinuz-$KREL" /boot/extlinux/extlinux.conf
     run "dpkg has nothing half installed afterwards" sh -c '[ -z "$(dpkg --audit)" ]'
     # Put the card back as a new one, for the second boot.
-    has "disable" 'No FPGA core will be loaded' sudo de25-fpga disable
-    sudo rm -f $fat/write-on-boot.rpd $fat/write-on-boot.txt
+    has "disable withdraws the reflash too" 'will not be reflashed' sudo de25-fpga disable
+    no "and leaves no request" test -e $fat/write-on-boot.rpd
     no "the boot menu no longer names an overlay" grep -q fdtoverlays /boot/extlinux/extlinux.conf
 fi
 exit $fail

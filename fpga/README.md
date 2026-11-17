@@ -43,9 +43,9 @@ What the base core gives Linux:
 | JP1 pin 14, input | PTP clock external timestamp, channel 1 (`extts`): a GNSS receiver's pulse per second |
 | JP1 pin 6, output | PTP clock periodic output, channel 1 (`perout`) |
 | JP1 pin 8 TX, pin 10 RX | UART0, `/dev/ttyS1` |
-| JP1 pins 36 SCL, 38 SDA | an I2C bus (`i2c2`) |
+| JP1 pins 36 SCL, 38 SDA | an I2C bus (the SoC's I2C_EMAC0, `i2c@10c02a00`) |
 | JP1 pins 33 SCLK, 35 MOSI, 37 MISO, 39 SS0, 40 SS1 | SPI master 0 |
-| JP2 pins 36 SCL, 38 SDA | an I2C bus (`i2c3`) |
+| JP2 pins 36 SCL, 38 SDA | an I2C bus (the SoC's I2C_EMAC1, `i2c@10c02b00`) |
 | JP2 pins 33 SCLK, 35 MOSI, 37 MISO, 39 SS0, 40 SS1 | SPI master 1 |
 | the board's I2C bus with the fan controller and the HDMI transmitter | I2C bus 0: the fan controller gets its kernel driver (`amc6821`); the HDMI transmitter is set up by a script |
 | HDMI socket | 1920x1080, 60 Hz video from the frame buffer at 0xBF000000 |
@@ -221,10 +221,11 @@ fpga/build.sh
 ```
 
 It clones Altera's tag into `work/fpga/base`, runs `apply.sh` on it, which ends by checking
-the SoC settings, compiles with Altera's own `make build` (which also generates the Platform
+the SoC settings (a design that fails the check is not compiled, however often the build is
+run again), compiles with Altera's own `make build` (which also generates the Platform
 Designer output and builds the self-test firmware), builds the overlay, and splits the
 compiled design into the HPS image, with the SPL from Task B, and the core image. The
-compile takes about fifteen minutes and stops with an error if timing is not met.
+compile takes about ten minutes and stops with an error if timing is not met.
 
 After changing a source, delete `work/fpga/base` and run it again: Altera's Makefile does
 not notice changed sources.

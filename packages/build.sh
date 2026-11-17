@@ -20,7 +20,7 @@ set -eu
 top=$(cd "$(dirname "$0")/.." && pwd)
 out=$top/out/packages
 fail() { echo "packages/build.sh: $*" >&2; exit 1; }
-[ $# -eq 0 ] || { sed -n '2,19p' "$0"; exit 2; }
+[ $# -eq 0 ] || { sed -n '2,18p' "$0"; exit 2; }
 . "$top/packages/VERSIONS"
 boot=$(cat "$top/fpga/BOOT_NAME")
 mkdir -p "$out"
@@ -39,8 +39,8 @@ rm -f "$out"/de25-nano-fpga-tools_*.deb
 inner tools "$TOOLS_VERSION" "$out"
 
 f=$top/out/fpga/base
-if [ ! -f "$f/hps.rpd" ] || [ ! -f "$f/fpga.rbf" ] || [ ! -f "$f/fpga.dtbo" ]; then
-    echo "packages/build.sh: no out/fpga/base (Task F): only de25-nano-fpga-tools is made"
+if [ -n "${NOFPGA:-}" ] || [ ! -f "$f/hps.rpd" ] || [ ! -f "$f/fpga.rbf" ] || [ ! -f "$f/fpga.dtbo" ]; then
+    echo "packages/build.sh: without Task F (NOFPGA is set, or there is no out/fpga/base): only de25-nano-fpga-tools is made"
     ls -l "$out"
     exit 0
 fi
@@ -50,6 +50,13 @@ itb=$top/out/u-boot/u-boot.itb
 deb=$out/de25-nano-boot-${boot}_${BOOT_VERSION}_arm64.deb
 if [ -f "$deb" ] && [ -z "${REBUILD_BOOT:-}" ]; then
     echo "packages/build.sh: $deb is kept (see the top of this script)"
+    # A kept package must still be what the sources say, as far as that can be told: its
+    # boot script is compared with boot.cmd (after the 72 bytes mkimage puts in front).
+    dpkg-deb --fsys-tarfile "$deb" | tar -xO "./usr/lib/de25-nano/boot/$boot/boot.scr" | tail -c +73 |
+        cmp -s - "$top/packages/boot/boot.cmd" ||
+        fail "packages/boot/boot.cmd has changed since $deb was made.
+Raise BOOT_VERSION in packages/VERSIONS (packages/README.md, \"Versions\"), or set REBUILD_BOOT=1
+to make the package again with the same version."
 else
     rm -f "$out"/de25-nano-boot-"${boot}"_*.deb "$out"/de25-nano-boot-"${boot}"_*.hps.jic
     inner boot "$boot" "$BOOT_VERSION" "$itb" "$f/hps.rpd" "$out"

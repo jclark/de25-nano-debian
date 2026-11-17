@@ -79,7 +79,8 @@ image byte for byte: a boot package made again without need would have every boa
 that its flash wants writing. So `build.sh` does not make the boot package again when
 `out/packages/` already has one with the version in `VERSIONS`; `REBUILD_BOOT=1` overrides
 that. For a release, start from the previous release's boot package in `out/packages/`
-unless `BOOT_VERSION` was raised. Beside the boot package the script keeps its HPS image
+unless `BOOT_VERSION` was raised. The one check the script can make on a kept package it
+makes: it fails if `boot/boot.cmd` is no longer the script inside it. Beside the boot package the script keeps its HPS image
 in the form Altera's programmer takes, `de25-nano-boot-base_<version>.hps.jic`, for
 [flash-jtag.md](../flash-jtag.md).
 
@@ -96,10 +97,9 @@ packages/build.sh
 Seconds. Check the result:
 
 - `dpkg-deb -I` and `dpkg-deb -c` on each file in `out/packages/`.
-- `packages/fpga-tools/test.sh` ends with `all 40 tests passed`. Run it after any change to
+- `packages/fpga-tools/test.sh` ends with `all 47 tests passed`. Run it after any change to
   the command.
 - On a board: `sudo apt install ./de25-nano-*.deb`, then `sudo de25-fpga status`.
-  `sudo de25-fpga status`.
 
 A core of a derived design:
 

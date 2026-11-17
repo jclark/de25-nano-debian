@@ -6,6 +6,7 @@
 #   inner.sh boot  NAME VERSION ITB RPD OUTDIR
 #   inner.sh core  NAME BOOT VERSION INDIR OUTDIR     INDIR holds fpga.rbf and fpga.dtbo
 set -eu
+umask 022       # the modes in the packages do not depend on who builds them
 here=$(cd "$(dirname "$0")" && pwd)
 maint="de25-nano-debian project <de25-nano-debian@users.noreply.github.com>"
 home=https://github.com/jclark/de25-nano-debian
@@ -59,7 +60,11 @@ tools)
     copyright de25-nano-fpga-tools < "$here/../LICENSE"
     script postinst <<'EOF'
 if [ "$1" = configure ]; then
-    systemctl enable de25-hdmi-init.service >/dev/null 2>&1 || true
+    # Enabled when the package is first installed, not again at every upgrade: an
+    # administrator who has disabled the unit keeps it disabled.
+    if [ -z "$2" ]; then
+        systemctl enable de25-hdmi-init.service >/dev/null 2>&1 || true
+    fi
     if [ -d /run/systemd/system ]; then
         systemctl daemon-reload || true
         udevadm control --reload || true
@@ -124,6 +129,7 @@ EOF
     ;;
 core)
     name=$1; boot=$2; version=$3; in=$4; out=$5
+    case $boot in ''|*[!a-z0-9-]*) echo "inner.sh: \"$boot\" is not the name of a boot package" >&2; exit 1 ;; esac
     d=$stage/usr/lib/de25-nano/core/$name
     install -d "$d"
     install -m 644 "$in/fpga.rbf" "$in/fpga.dtbo" "$d/"
@@ -147,14 +153,15 @@ if [ "\$1" = remove ]; then
     de25-fpga hook core-remove $name || true
 fi
 EOF
-    control "de25-nano-core-$name" "$version" arm64 "de25-nano-boot-$boot, de25-nano-fpga-tools (>= 0.2)" \
-        "DE25-Nano: FPGA core image ($name)" <<EOF
+    {
+        cat <<EOF
 A core image for the DE25-Nano's FPGA, with its device tree overlay. U-Boot loads the
 selected core image at boot; "de25-fpga select $name" selects this one. It loads on the
 HPS image of de25-nano-boot-$boot.
-${DESCRIPTION:+
-$DESCRIPTION}
 EOF
+        [ -z "${DESCRIPTION:-}" ] || printf '\n%s\n' "$DESCRIPTION"
+    } | control "de25-nano-core-$name" "$version" arm64 "de25-nano-boot-$boot, de25-nano-fpga-tools (>= 0.2)" \
+        "DE25-Nano: FPGA core image ($name)"
     finish "de25-nano-core-$name" "$version" arm64 "$out"
     ;;
 *)

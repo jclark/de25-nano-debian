@@ -16,7 +16,7 @@ name=$1; version=$2
 in=$(cd "$3" && pwd); mkdir -p "$4"; out=$(cd "$4" && pwd)
 fail() { echo "mkdeb-core: $*" >&2; exit 1; }
 case $name in ''|*[!a-z0-9-]*) fail "NAME must be lower-case letters, digits and hyphens" ;; esac
-for f in fpga.rbf fpga.dtbo boot-name; do [ -f "$in/$f" ] || fail "no $f in $in"; done
+for f in fpga.rbf fpga.dtbo boot-name; do [ -s "$in/$f" ] || fail "no $f in $in, or it is empty"; done
 # With dpkg-deb on this machine, run here; otherwise in Task I's container.
 if command -v dpkg-deb >/dev/null; then
     exec sh "$top/packages/inner.sh" core "$name" "$(cat "$in/boot-name")" "$version" "$in" "$out"

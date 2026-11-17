@@ -40,7 +40,7 @@ wait_up() {
 echo "# kernel $krel; waiting for the first boot"
 wait_up
 scp -q -i $w/key -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    "$top"/out/packages/*.deb "$kdeb" debian@127.0.0.1:/tmp/
+    "$top"/out/packages/de25-nano-*.deb "$kdeb" debian@127.0.0.1:/tmp/
 status=0
 g "KREL=$krel sh -s first" < "$top/sdimage/qemu/checks.sh" || status=1
 echo "# restarting"
